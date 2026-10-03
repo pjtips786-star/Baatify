@@ -1,1 +1,15 @@
-
+body{display:grid;place-items:center;padding:20px;min-height:100vh}
+.card{width:100%;max-width:380px;text-align:center}
+.card h1{margin:0 0 6px;font-size:26px}
+.tag{color:var(--mute);margin:0 0 22px}
+form.col{display:grid;gap:12px;text-align:left}
+.pw{position:relative}
+.pw input{padding-right:70px}
+.eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--mute);cursor:pointer;padding:6px}
+.hint{font-size:12px;min-height:16px;margin-top:4px;color:var(--mute)}
+.hint.ok{color:var(--g)}
+.hint.bad{color:var(--bad)}
+#err{min-height:20px;margin-top:12px;color:var(--bad);font-size:13px}
+.alt{margin-top:18px;color:var(--mute)}
+.feat{list-style:none;padding:0;margin:0 0 22px;color:var(--mute);display:grid;gap:6px}
+.btns{display:grid;gap:10px}
