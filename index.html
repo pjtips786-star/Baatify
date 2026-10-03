@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Baatify - Free real-time chat with anyone</title>
+<meta name="description" content="Baatify is a free real-time chat app. Sign up, find friends by username and chat instantly with photos.">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/auth.css">
+</head>
+<body>
+<main class="card">
+  <div class="logo">B</div>
+  <h1>Baatify</h1>
+  <p class="tag">Free real-time chat with anyone</p>
+  <ul class="feat">
+    <li>Find friends by username</li>
+    <li>Instant messages with seen ticks</li>
+    <li>Send photos in one tap</li>
+  </ul>
+  <div class="btns">
+    <a class="btn" href="register.html">Sign up</a>
+    <a class="btn ghost" href="login.html">Login</a>
+  </div>
+</main>
+<script type="module">
+import {auth} from "./js/firebase.js";
+import {onAuthStateChanged} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+onAuthStateChanged(auth,u=>{ if(u) location.replace("chat.html"); });
+</script>
+</body>
+</html>

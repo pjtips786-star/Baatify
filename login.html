@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Login - Baatify</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/auth.css">
+</head>
+<body>
+<main class="card">
+  <div class="logo">B</div>
+  <h1>Welcome back</h1>
+  <p class="tag">Login to continue chatting</p>
+  <form id="form" class="col" novalidate>
+    <input id="u" placeholder="Username" autocapitalize="off" autocomplete="username" aria-label="Username">
+    <div class="pw">
+      <input id="p" type="password" placeholder="Password" autocomplete="current-password" aria-label="Password">
+      <button type="button" id="eye" class="eye">Show</button>
+    </div>
+    <button class="btn" id="go">Login</button>
+  </form>
+  <div id="err" role="alert"></div>
+  <p class="alt">New here? <a href="register.html">Create account</a></p>
+</main>
+<script type="module" src="js/login.js"></script>
+</body>
+</html>
