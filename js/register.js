@@ -1,4 +1,4 @@
-import {auth,db,mail} from "./firebase.js";
+const {auth,db,mail}=await import("./firebase.js"+(window.V||""));
 import {createUserWithEmailAndPassword,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import {doc,getDoc,setDoc,serverTimestamp} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 

@@ -1,17 +1,29 @@
-import {db} from "./firebase.js";
+const {db}=await import("./firebase.js"+(window.V||""));
 import {doc,setDoc,updateDoc,addDoc,collection,query,where,onSnapshot,serverTimestamp} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-// STUN free hai. Kuch networks par TURN bhi chahiye (neeche notes dekho):
+// STUN free hai. Kuch networks par TURN bhi chahiye:
 // {urls:"turn:HOST:80",username:"USER",credential:"PASS"}
 const ICE=[{urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"}];
 
 const $=id=>document.getElementById(id);
 const ico=n=>'<svg class="i" aria-hidden="true"><use href="#i-'+n+'"/></svg>';
-let me=null,inited=false,call=null,pc=null,stream=null,unsubs=[],pend=[],tick=null,ringT=null,t0=0;
+let me=null,inited=false,call=null,pc=null,stream=null,mir=null,unsubs=[],pend=[],tick=null,ringT=null,t0=0;
 
-function toast(t){const e=$("toast");if(!e)return;e.textContent=t;e.classList.add("on");setTimeout(()=>e.classList.remove("on"),2500)}
+function toast(t){const e=$("toast");if(!e)return;e.textContent=t;e.classList.add("on");setTimeout(()=>e.classList.remove("on"),5000)}
 function setStatus(t){$("cs").textContent=t}
 function dur(){const s=Math.floor((Date.now()-t0)/1000);return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0")}
+
+function errMsg(e){
+  console.error("CALL ERROR:",e);
+  const n=(e&&typeof e.code==="string"&&e.code)||(e&&e.name)||"";
+  if(n==="NotAllowedError")return "Mic/camera permission blocked. Allow it in site settings";
+  if(n==="NotFoundError")return "No microphone/camera found";
+  if(n==="NotReadableError")return "Mic/camera is in use by another app or tab";
+  if(n==="SecurityError")return "Calls need a secure (HTTPS) site";
+  if(n==="permission-denied")return "Firestore rules: publish the calls block";
+  if(n==="unavailable")return "No internet / Firestore unreachable";
+  return "Call error: "+(n||(e&&e.message)||"unknown");
+}
 
 function build(){
   const b=document.createElement("div");b.id="call";b.className="hide";
@@ -37,9 +49,12 @@ function build(){
   };
 }
 
-function showUI(name,st,inc){
-  $("call").className=call.type==="audio"?"audio":"";
-  $("cn").textContent=name;$("cav").textContent=name[0].toUpperCase();setStatus(st);
+function showUI(name,st,inc,photo){
+  $("call").className=call.type==="audio"?"audio":"video";
+  const av=$("cav");
+  av.style.backgroundImage=photo?'url("'+photo+'")':"";
+  av.textContent=photo?"":name[0].toUpperCase();
+  $("cn").textContent=name;setStatus(st);
   $("ck").classList.toggle("hide",!inc);
   controls(false);
 }
@@ -50,10 +65,47 @@ function controls(on){
   $("cc").classList.remove("off");$("cc").innerHTML=ico("video");
 }
 
-const media=type=>navigator.mediaDevices.getUserMedia({
-  audio:{echoCancellation:true,noiseSuppression:true},
-  video:type==="video"?{facingMode:"user"}:false
-});
+async function media(type){
+  const a={echoCancellation:true,noiseSuppression:true},md=navigator.mediaDevices;
+  if(type!=="video")return md.getUserMedia({audio:a});
+  try{return await md.getUserMedia({audio:a,video:{facingMode:"user"}})}
+  catch(e){
+    if(e&&(e.name==="OverconstrainedError"||e.name==="NotFoundError"))
+      return md.getUserMedia({audio:a,video:true});
+    throw e;
+  }
+}
+
+/* Video ko bhejne se pehle ulta (mirror) karo, taaki samne wale ko bhi mirror dikhe */
+function mirror(src){
+  const vt=src.getVideoTracks()[0];
+  if(!vt)return null;
+  const v=document.createElement("video");
+  v.srcObject=new MediaStream([vt]);v.muted=true;v.playsInline=true;
+  v.play().catch(()=>{});
+  const c=document.createElement("canvas"),x=c.getContext("2d");
+  let run=true;
+  const draw=()=>{
+    if(!run)return;
+    if(v.videoWidth){
+      if(c.width!==v.videoWidth||c.height!==v.videoHeight){c.width=v.videoWidth;c.height=v.videoHeight}
+      x.setTransform(-1,0,0,1,c.width,0);
+      x.drawImage(v,0,0,c.width,c.height);
+    }
+    if(v.requestVideoFrameCallback)v.requestVideoFrameCallback(draw);
+    else requestAnimationFrame(draw);
+  };
+  draw();
+  const out=c.captureStream(30);
+  src.getAudioTracks().forEach(t=>out.addTrack(t));   // awaz wahi track, mute button kaam karega
+  return {out,stop(){run=false;v.srcObject=null}};
+}
+
+// call ke liye jo stream pc ko dena hai: video ho to mirror wali, warna asli
+function outStream(type){
+  if(type==="video"){mir=mirror(stream);if(mir)return mir.out}
+  return stream;
+}
 
 function mkpc(id,side,ready){
   const p=new RTCPeerConnection({iceServers:ICE});
@@ -67,6 +119,7 @@ function mkpc(id,side,ready){
   p.ontrack=e=>{$("rv").srcObject=e.streams[0]};
   p.onconnectionstatechange=()=>{
     if(p.connectionState==="connected"){
+    $("call").classList.add("live");
       clearTimeout(ringT);t0=Date.now();clearInterval(tick);
       tick=setInterval(()=>setStatus(dur()),1000);setStatus("00:00");
     }
@@ -85,17 +138,19 @@ function listenCands(id,side){
 /* ---------- Caller ---------- */
 export async function startCall(o,type){
   if(call)return toast("Already in a call");
+  if(!me)return toast("Please wait, app is still loading");
   if(!window.RTCPeerConnection||!navigator.mediaDevices)return toast("Calls need HTTPS and a modern browser");
   call={role:"caller",type,peer:o};
-  showUI(o.name,"Calling…",false);
+  showUI(o.name,"Calling…",false,o.photo);
   try{
     stream=await media(type);
     if(type==="video")$("lv").srcObject=stream;
+    const send=outStream(type);
     const ref=doc(collection(db,"calls"));call.id=ref.id;
     pc=mkpc(ref.id,"callerCandidates",false);
-    stream.getTracks().forEach(t=>pc.addTrack(t,stream));
+    send.getTracks().forEach(t=>pc.addTrack(t,send));
     const off=await pc.createOffer();await pc.setLocalDescription(off);
-    await setDoc(ref,{from:me.uid,to:o.uid,fromName:me.name,type,status:"ringing",
+    await setDoc(ref,{from:me.uid,to:o.uid,fromName:me.name,fromPhoto:me.photo||"",type,status:"ringing",
       offer:{type:off.type,sdp:off.sdp},createdAt:serverTimestamp()});
     pc.ready=true;pc.q.forEach(pc.send);pc.q=[];
     unsubs.push(onSnapshot(ref,async s=>{
@@ -114,7 +169,7 @@ export async function startCall(o,type){
         updateDoc(ref,{status:"missed"}).catch(()=>{});end("No answer",false);
       }
     },45000);
-  }catch(e){end(e&&e.name==="NotAllowedError"?"Allow mic/camera permission and try again":"Could not start call",true)}
+  }catch(e){end(errMsg(e),true)}
 }
 
 /* ---------- Callee ---------- */
@@ -130,13 +185,13 @@ export function initCalls(user){
       if(call){updateDoc(ch.doc.ref,{status:"declined"}).catch(()=>{});return} // busy
       incoming(ch.doc.id,d);
     }),
-    ()=>{}
+    e=>console.error("CALL LISTEN ERROR:",e)
   );
 }
 
 function incoming(id,d){
   call={id,role:"callee",type:d.type,offer:d.offer};
-  showUI(d.fromName,"Incoming "+d.type+" call…",true);
+  showUI(d.fromName,"Incoming "+d.type+" call…",true,d.fromPhoto);
   if(navigator.vibrate)navigator.vibrate([300,200,300]);
   unsubs.push(onSnapshot(doc(db,"calls",id),s=>{
     const x=s.data();if(!x||!call)return;
@@ -152,8 +207,9 @@ async function accept(){
   try{
     stream=await media(c.type);
     if(c.type==="video")$("lv").srcObject=stream;
+    const send=outStream(c.type);
     pc=mkpc(c.id,"calleeCandidates",true);
-    stream.getTracks().forEach(t=>pc.addTrack(t,stream));
+    send.getTracks().forEach(t=>pc.addTrack(t,send));
     await pc.setRemoteDescription(c.offer);flush();
     const a=await pc.createAnswer();await pc.setLocalDescription(a);
     await updateDoc(doc(db,"calls",c.id),{answer:{type:a.type,sdp:a.sdp},status:"accepted"});
@@ -161,7 +217,7 @@ async function accept(){
     controls(true);
   }catch(e){
     updateDoc(doc(db,"calls",c.id),{status:"declined"}).catch(()=>{});
-    end(e&&e.name==="NotAllowedError"?"Allow mic/camera permission and try again":"Could not join call",false);
+    end(errMsg(e),false);
   }
 }
 
@@ -180,6 +236,7 @@ function end(msg,notify){
   clearTimeout(ringT);clearInterval(tick);
   unsubs.forEach(u=>u());unsubs=[];
   if(pc){pc.close();pc=null}
+  if(mir){mir.stop();mir=null}
   if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
   $("rv").srcObject=null;$("lv").srcObject=null;
   if(notify&&id)updateDoc(doc(db,"calls",id),{status:"ended"}).catch(()=>{});
