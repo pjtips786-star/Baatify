@@ -1,3 +1,4 @@
+/* ===== Baatify chat.css (complete) ===== */
 :root{
   --bg:#0b141a;--side:#111b21;--panel:#202c33;--line:#222d34;
   --text:#e9edef;--mute:#8696a0;--g:#00a884;--blue:#53bdeb;
@@ -19,10 +20,10 @@ input:focus-visible{box-shadow:0 0 0 2px var(--g)}
 /* ----- Vector icons ----- */
 .i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none;display:block}
 
+/* ----- Logo ----- */
 .logo{width:64px;height:64px;border-radius:50%;background:var(--g);display:grid;place-items:center;font-size:28px;font-weight:700;color:#fff;margin:0 auto 12px}
-#splash{height:100%;display:grid;place-content:center;justify-items:center;gap:16px}
-.spin{width:28px;height:28px;border:3px solid var(--line);border-top-color:var(--g);border-radius:50%;animation:sp 1s linear infinite}
-@keyframes sp{to{transform:rotate(360deg)}}
+
+#oa{cursor:pointer}
 
 /* ----- Layout (keyboard ke hisaab se JS height set karta hai) ----- */
 #app{position:fixed;left:0;right:0;top:0;height:var(--vh,100%);display:flex;padding-top:env(safe-area-inset-top,0px)}
@@ -34,7 +35,7 @@ button.av{cursor:pointer}
 .ic{background:none;border:0;color:var(--mute);cursor:pointer;padding:9px;border-radius:50%;display:grid;place-items:center}
 .ic:active{background:rgba(127,127,127,.2)}
 .ic:focus-visible,.row:focus-visible,.av:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
-#ca,#cv{color:var(--text)}
+#ca,#cv,#selbar .ic{color:var(--text)}
 
 .sbox{padding:8px 12px;flex:none;position:relative}
 .sbox input{padding-left:40px}
@@ -42,10 +43,10 @@ button.av{cursor:pointer}
 
 /* ----- Chat list + search ----- */
 #list,#res{flex:1;overflow-y:auto}
-.row{display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--line)}
+.row{display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--line);user-select:none;-webkit-user-select:none}
 .row:hover,.row.act{background:var(--panel)}
 .tx{flex:1;min-width:0;display:flex;flex-direction:column}
-.tx span{color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px}
+.tx span{color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px;min-height:20px}
 .rt{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
 .row small{color:var(--mute);font-size:12px}
 .bd{background:var(--g);color:#fff;border-radius:99px;min-width:20px;height:20px;padding:0 6px;font-size:12px;font-weight:700;display:grid;place-items:center}
@@ -60,7 +61,7 @@ button.av{cursor:pointer}
   background-image:radial-gradient(circle at 20px 20px,var(--dot) 2px,transparent 2.5px),radial-gradient(circle at 60px 52px,var(--dot) 3px,transparent 3.5px);
   background-size:80px 80px}
 #empty{height:100%;display:grid;place-content:center;justify-items:center;text-align:center;color:var(--mute);padding:20px}
-#pane{height:100%;display:flex;flex-direction:column}
+#pane{height:100%;display:flex;flex-direction:column;position:relative}
 .who{flex:1;min-width:0}
 .who b,.who small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .who small{color:var(--mute);font-size:12px}
@@ -70,29 +71,35 @@ button.av{cursor:pointer}
 .day{align-self:center;background:var(--panel);color:var(--mute);font-size:12px;padding:4px 12px;border-radius:8px;margin:8px 0}
 
 /* ----- Bubbles + tail ----- */
-.m{position:relative;max-width:75%;padding:6px 9px 4px;border-radius:8px;background:var(--in);align-self:flex-start;word-wrap:break-word;white-space:pre-wrap;cursor:pointer}
+.m{position:relative;max-width:75%;padding:6px 9px 4px;border-radius:8px;background:var(--in);align-self:flex-start;word-wrap:break-word;white-space:pre-wrap;cursor:pointer;transition:transform .12s ease-out}
 .m.me{background:var(--out);align-self:flex-end}
 .m.tail{margin-top:6px;border-top-left-radius:0}
 .m.me.tail{border-top-left-radius:8px;border-top-right-radius:0}
 .m.tail::before{content:"";position:absolute;top:0;left:-7px;width:10px;height:12px;background:inherit;clip-path:polygon(100% 0,0 0,100% 100%)}
 .m.me.tail::before{left:auto;right:-7px;clip-path:polygon(0 0,100% 0,0 100%)}
+.m.sel{box-shadow:0 0 0 2px var(--g)}
 .m img{display:block;max-width:100%;width:260px;border-radius:6px;margin-bottom:2px}
 .m.del .tx2{font-style:italic;color:var(--mute);display:flex;align-items:center;gap:6px}
 .m.del .tx2 .i{width:15px;height:15px}
 .rp{border-left:3px solid var(--blue);background:rgba(127,127,127,.18);border-radius:4px;padding:3px 8px;margin-bottom:4px;font-size:13px}
 .rp b{display:block;color:var(--blue);font-size:12px}
 .meta{font-size:11px;color:var(--mute);text-align:right;margin-top:2px;display:flex;justify-content:flex-end;align-items:center;gap:3px}
-.tk{display:inline-flex}
-.tk .i{width:17px;height:17px;stroke-width:2.2}
-.tk.seen{color:var(--blue)}
-.acts{display:none;gap:18px;margin-top:6px;font-size:13px}
-.m.sel .acts{display:flex}
-.acts button{background:none;border:0;padding:4px 0;cursor:pointer;display:flex;align-items:center;gap:5px}
-.acts .i{width:15px;height:15px}
+
+.tk{display:inline-flex;transition:color .25s}
+.tk .i{width:18px;height:18px;stroke-width:2.4}
+.tk.seen{color:#34b7f1}
+
+.tk.wait .i{width:14px;height:14px;stroke-width:2.2}
 @media(prefers-reduced-motion:no-preference){
   .m.new{animation:pop .18s ease-out}
   @keyframes pop{from{opacity:0;transform:translateY(6px) scale(.97)}}
 }
+
+/* ----- 3-dot menu ----- */
+#menu{position:absolute;top:54px;right:8px;z-index:6;background:var(--panel);border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.4);min-width:170px;padding:6px 0}
+#menu button{display:block;width:100%;text-align:left;background:none;border:0;padding:12px 16px;cursor:pointer}
+#menu button:hover{background:rgba(127,127,127,.15)}
+#m3{color:#f15c6d}
 
 /* ----- Reply bar, emoji, composer ----- */
 #rbar{display:flex;align-items:center;gap:8px;background:var(--panel);padding:8px 12px;border-top:1px solid var(--line);flex:none}
@@ -108,26 +115,29 @@ button.av{cursor:pointer}
 #send{width:44px;height:44px;border:0;border-radius:50%;background:var(--g);color:#fff;cursor:pointer;flex:none;display:grid;place-items:center}
 #send .i{width:20px;height:20px}
 
+/* ----- Confirm sheet ----- */
+#sheet{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:15;display:grid;place-items:center;padding:20px}
+.sbox2{background:var(--panel);width:100%;max-width:340px;border-radius:16px;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,.45)}
+.sbox2 p{margin:0 0 18px;text-align:center;line-height:1.5}
+@media(prefers-reduced-motion:no-preference){.sbox2{animation:pop .18s ease-out}}
+    
+.sbtn{display:flex;gap:10px}
+.sbtn button{flex:1;padding:12px;border:0;border-radius:24px;cursor:pointer;background:rgba(127,127,127,.2)}
+.sbtn .dng{background:#e53935;color:#fff}
+
 /* ----- Photo viewer + toast ----- */
 #view{position:fixed;inset:0;background:rgba(0,0,0,.9);display:grid;place-items:center;z-index:9}
 #view img{max-width:95%;max-height:95%}
-#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#323b41;color:#fff;padding:10px 16px;border-radius:20px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:10}
+.vb{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.15);color:#fff;display:grid;place-items:center;cursor:pointer}
+#vx{left:14px}
+#dl{right:14px}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#323b41;color:#fff;padding:10px 16px;border-radius:20px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:30;max-width:90%;text-align:center}
 #toast.on{opacity:1}
-
-/* ----- Mobile: ek time par ek screen ----- */
-@media(max-width:700px){
-  #side{width:100%}
-  #chat{display:none}
-  #app.open #side{display:none}
-  #app.open #chat{display:block}
-  #back{display:grid}
-  #msgs{padding:10px}
-}
 
 /* ----- Call screen ----- */
 #call{position:fixed;inset:0;z-index:20;background:#0b141a;display:flex;flex-direction:column;align-items:center;color:#fff;padding-top:env(safe-area-inset-top,0px)}
-#rv{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
-#lv{position:absolute;right:12px;top:calc(12px + env(safe-area-inset-top,0px));width:96px;height:136px;object-fit:cover;border-radius:12px;background:#222;z-index:2;transform:scaleX(-1)}
+#rv{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000;transform:none}  /* samne wala: mirror hoke aata hai, dobara flip nahi */
+#lv{position:absolute;right:12px;top:calc(12px + env(safe-area-inset-top,0px));width:96px;height:136px;object-fit:cover;border-radius:12px;background:#222;z-index:2;transform:scaleX(-1)}  /* apna: mirror */
 #call.audio #rv{opacity:0}
 #call.audio #lv{display:none}
 .cinfo{position:relative;z-index:1;margin-top:18vh;text-align:center;display:grid;gap:8px;justify-items:center;text-shadow:0 1px 6px rgba(0,0,0,.6)}
@@ -140,3 +150,46 @@ button.av{cursor:pointer}
 .cb.red .i{transform:rotate(135deg)}
 .cb.green{background:#00a884}
 .cb.off{background:#fff;color:#111}
+
+/* ----- Upload progress ring ----- */
+.m.upl{padding:4px}
+.m .up{position:relative;width:240px;max-width:100%}
+.m .up img{display:block;width:100%;border-radius:6px;filter:brightness(.55);margin:0}
+.ring{position:absolute;inset:0;display:grid;place-items:center}
+.ring svg{width:58px;height:58px;transform:rotate(-90deg);grid-area:1/1}
+.ring circle{fill:rgba(0,0,0,.35);stroke-width:3}
+.ring .bg{stroke:rgba(255,255,255,.3)}
+.ring .fg{stroke:#fff;stroke-linecap:round;stroke-dasharray:119.4;stroke-dashoffset:119.4;transition:stroke-dashoffset .2s}
+.ring b{grid-area:1/1;color:#fff;font-size:12px}
+
+/* ----- Mobile: ek time par ek screen ----- */
+@media(max-width:700px){
+  #side{width:100%}
+  #chat{display:none}
+  #app.open #side{display:none}
+  #app.open #chat{display:block}
+  #back{display:grid}
+  #msgs{padding:10px}
+}
+
+/* ----- Voice message ----- */
+#mic,#rsend{width:44px;height:44px;border:0;border-radius:50%;background:var(--g);color:#fff;cursor:pointer;flex:none;display:grid;place-items:center}
+#mic .i,#rsend .i{width:20px;height:20px}
+#rec{display:flex;align-items:center;gap:10px;padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px));background:var(--panel);flex:none}
+#rec .dot{width:10px;height:10px;border-radius:50%;background:#e53935;animation:blink 1s infinite}
+#rtime{flex:1;font-variant-numeric:tabular-nums}
+@keyframes blink{50%{opacity:.25}}
+.vm{display:flex;align-items:center;gap:10px;min-width:210px;padding:4px 2px}
+.vp{width:38px;height:38px;border-radius:50%;border:0;background:var(--g);color:#fff;display:grid;place-items:center;cursor:pointer;flex:none}
+.vp .i{width:18px;height:18px;fill:currentColor}
+.vbar{flex:1;height:4px;margin:8px 0;border-radius:2px;background:rgba(127,127,127,.35);cursor:pointer;position:relative}
+.vbar::before{content:"";position:absolute;inset:-10px 0}
+.vfill{height:100%;width:0;background:#34b7f1;border-radius:2px}
+.vt{font-size:12px;color:var(--mute);min-width:32px;text-align:right}
+
+/* ----- Call screen: DP + video layout ----- */
+#call.audio .cinfo .av{width:150px;height:150px;font-size:60px;box-shadow:0 0 0 6px rgba(255,255,255,.12)}
+#call.video.live::before{content:"";position:absolute;inset:0 0 auto 0;height:110px;background:linear-gradient(rgba(0,0,0,.55),transparent);z-index:1;pointer-events:none}
+#call.video.live .cinfo{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));left:14px;margin:0;text-align:left;justify-items:start;gap:2px;z-index:3}
+#call.video.live .cinfo .av{display:none}
+#call.video.live .cinfo b{font-size:17px}
