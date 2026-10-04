@@ -5,7 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Profile - Baatify</title>
-<link rel="stylesheet" href="css/profile.css?v=1">
+<script>
+window.V="?v="+Date.now();
+document.write('<link rel="stylesheet" href="css/profile.css'+window.V+'">');
+</script>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
@@ -50,9 +53,26 @@
     <button class="btn" id="spw" type="button">Change password</button>
   </section>
 </main>
-
+<div id="crop" class="hide">
+  <div class="cbox">
+    <p>Drag the square to move it. Drag a corner to resize (1:1)</p>
+    <div id="cf">
+      <img id="ci" alt="">
+      <div id="cb">
+        <i class="hd tl" data-h="tl"></i>
+        <i class="hd tr" data-h="tr"></i>
+        <i class="hd bl" data-h="bl"></i>
+        <i class="hd br" data-h="br"></i>
+      </div>
+    </div>
+    <div class="cbtn">
+      <button id="cno" type="button">Cancel</button>
+      <button id="cok" type="button" class="btn">Use photo</button>
+    </div>
+  </div>
+</div>
 <input type="file" id="pf" accept="image/*" class="hide">
 <div id="toast" role="status"></div>
-<script type="module" src="js/profile.js?v=2"></script>
+<script>import("./js/profile.js"+window.V)</script>
 </body>
 </html>
