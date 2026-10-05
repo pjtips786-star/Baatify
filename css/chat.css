@@ -91,8 +91,8 @@ button.av{cursor:pointer}
 
 .tk.wait .i{width:14px;height:14px;stroke-width:2.2}
 @media(prefers-reduced-motion:no-preference){
-  .m.new{animation:pop .3s cubic-bezier(.2,.8,.2,1)}
-  @keyframes pop{from{opacity:0;transform:translateY(22px) scale(.96)}}
+  .m.new{animation:pop .3s ease-out}
+  @keyframes pop{from{opacity:0;transform:scale(.96)}}
 }
 
 /* ----- 3-dot menu ----- */
