@@ -17,7 +17,8 @@ const SNAP={serverTimestamps:"estimate"};
 let me=null,cur=null,chats=null,chatsAll=[],msgs=[],seen=new Set();
 let first=false,force=false,selId=null,rep=null,editing=null,ou={},clr=0,vurl="",askRes,swiped=false;
 let unsubL,unsubM,unsubU,st,hb,lt=0;
-let inChat=false,vOpen=false;
+let inChat=false,vOpen=false,iOpen=false;
+let pinned=true,animUntil=0;
 const uc=new Map();
 const fmtDur=s=>{s=Math.floor(s||0);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
 let rec=null,pl=null;
@@ -214,6 +215,7 @@ async function openChat(o){
   cur={id,o};seen=new Set();first=true;force=false;selId=null;editing=null;ou={};
   clr=clrOf(chatsAll.find(x=>x.id===id));
   unsubM&&unsubM();unsubU&&unsubU();clearRep();
+  if(iOpen){iOpen=false;show("pinfo",0)}
   show("emo",0);show("menu",0);show("selbar",0);show("phead",1);
   $("on").textContent=o.name;setAv($("oa"),o.name,"");$("os").textContent="";
   show("empty",0);show("pane",1);
@@ -225,6 +227,7 @@ async function openChat(o){
   }catch(e){toast("Could not open chat");return}
   unsubU=onSnapshot(doc(db,"users",o.uid),s=>{
     ou=s.data(SNAP)||{};setAv($("oa"),o.name,ou.photo);status();
+    if(iOpen)fillInfo();
   });
   unsubM=onSnapshot(
     query(collection(db,"chats",id,"messages"),orderBy("t")),
@@ -239,6 +242,7 @@ async function openChat(o){
 }
 
 function closeChat(resetUnread){
+if(iOpen){iOpen=false;show("pinfo",0)}
 if(rec)recStop(true);
   if(pl){pl.a.pause();pl=null}
   if(resetUnread&&cur)updateDoc(doc(db,"chats",cur.id),{["unread."+me.uid]:0}).catch(()=>{});
@@ -252,6 +256,7 @@ $("back").onclick=()=>closeChat(true);
 // phone ka back button
 addEventListener("popstate",()=>{
   if(vOpen){vOpen=false;show("view",0);return}
+  if(iOpen){iOpen=false;show("pinfo",0);return}
   if(inChat){inChat=false;closeChat(true)}
 });
 
@@ -285,9 +290,8 @@ function syncSel(){
 }
 
 function renderMsgs(){
-  const box=$("msgs"),top=box.scrollTop;
-  const near=box.scrollHeight-box.scrollTop-box.clientHeight<140;
-  const stickNow=first||force||near;
+  const box=$("msgs"),top=box.scrollTop,prevH=box.scrollHeight;
+  const stickNow=first||force||pinned||Date.now()<animUntil;
   box.textContent="";let day="",prev=null;
   const vis=msgs.filter(m=>!clr||tms(m.t)>clr);
   if(selId&&!vis.some(m=>m.id===selId))selId=null;
@@ -358,14 +362,24 @@ function renderMsgs(){
     box.appendChild(el);
   });
 
-  // smooth scroll: pehli baar seedha, baad mein naram
-  if(first){box.scrollTop=box.scrollHeight;first=false}
-  else if(force||near){box.scrollTop=top;box.scrollTo({top:box.scrollHeight,behavior:"smooth"});force=false}
-  else box.scrollTop=top;
+  // pehli baar seedha neeche, baad mein naram
+  if(first){box.scrollTop=box.scrollHeight;first=false;pinned=true}
+  else if(stickNow){
+    box.scrollTop=top;
+    if(force||box.scrollHeight>prevH||Date.now()<animUntil){
+      animUntil=Date.now()+700;
+      box.scrollTo({top:box.scrollHeight,behavior:"smooth"});
+    }
+    force=false;
+  }else box.scrollTop=top;
   syncSel();
 }
 
 $("msgs").onclick=e=>{if(e.target===$("msgs")&&selId){selId=null;renderMsgs()}};
+$("msgs").addEventListener("scroll",()=>{
+  if(Date.now()<animUntil)return;
+  const b=$("msgs");pinned=b.scrollHeight-b.scrollTop-b.clientHeight<140;
+});
 
 function markSeen(){
   if(!cur||document.hidden)return;
@@ -669,4 +683,38 @@ function voiceEl(m){
   };
   return w;
 }
+/* ---------- Contact info (header ke naam par tap) ---------- */
+function syncInfo(){if(iOpen)$("pis").textContent=$("os").textContent}
+
+function fillInfo(){
+  if(!cur)return;
+  const n=ou.name||cur.o.name;
+  setAv($("pia"),n,ou.photo);
+  $("pin").textContent=n;
+  $("piu").textContent=ou.username?"@"+ou.username:"";
+  const j=tms(ou.createdAt);
+  $("pij").textContent=j?new Date(j).toLocaleDateString([], {day:"numeric",month:"long",year:"numeric"}):"-";
+  syncInfo();
+}
+
+function openInfo(){
+  if(!cur||iOpen)return;
+  fillInfo();show("pinfo",1);
+  history.pushState({bt:"info"},"");iOpen=true;
+}
+function closeInfo(){if(iOpen)history.back();else show("pinfo",0)}
+
+const who=$("on").parentElement;
+who.style.cursor="pointer";who.tabIndex=0;who.setAttribute("role","button");
+who.onclick=openInfo;
+who.onkeydown=e=>{if(e.key==="Enter")openInfo()};
+
+$("pibk").onclick=closeInfo;
+$("pica").onclick=()=>$("ca").click();
+$("picv").onclick=()=>$("cv").click();
+$("pia").onclick=()=>{
+  if(!ou.photo)return;
+  vurl=ou.photo;$("vimg").src=ou.photo;show("view",1);
+  history.pushState({bt:"view"},"");vOpen=true;
+};
 sync();
