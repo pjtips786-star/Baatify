@@ -212,7 +212,7 @@ async function search(v){
 /* ---------- Chat screen ---------- */
 async function openChat(o){
   const id=[me.uid,o.uid].sort().join("_");
-  cur={id,o};seen=new Set();first=true;force=false;selId=null;editing=null;ou={};
+  cur={id,o};seen=new Set();vcache.clear();first=true;force=false;selId=null;editing=null;ou={};
   clr=clrOf(chatsAll.find(x=>x.id===id));
   unsubM&&unsubM();unsubU&&unsubU();clearRep();
   if(iOpen){iOpen=false;show("pinfo",0)}
@@ -319,6 +319,7 @@ function renderMsgs(){
         r.append(rb,rs);el.appendChild(r);
       }
       if(m.audio){el.appendChild(voiceEl(m))}
+      else if(m.video){el.appendChild(videoEl(m))}
       else if(m.img){
         const im=document.createElement("img");
         im.src=m.img;im.alt="Photo";im.loading="lazy";
@@ -422,7 +423,7 @@ $("sd").onclick=async()=>{
   const m=sel();if(!m)return;
   if(await ask("Delete this message for everyone?","Delete")){
     const isLast=msgs.length&&msgs[msgs.length-1].id===m.id;
-    updateDoc(doc(db,"chats",cur.id,"messages",m.id),{deleted:true,text:"",img:"",audio:""}).catch(()=>toast("Could not delete"));
+    updateDoc(doc(db,"chats",cur.id,"messages",m.id),{deleted:true,text:"",img:"",audio:"",video:""}).catch(()=>toast("Could not delete"));
     if(isLast)updateDoc(doc(db,"chats",cur.id),{lastDel:true,lastMsg:""}).catch(()=>{});
   }
   selId=null;renderMsgs();
@@ -442,7 +443,7 @@ $("m3").onclick=logout;
 /* ---------- Reply / edit bar ---------- */
 function setRep(m){
   clearRep();
-  rep={n:m.sender===me.uid?"You":cur.o.name,t:(m.text||(m.audio?"Voice message":"Photo")).slice(0,80)};
+  rep={n:m.sender===me.uid?"You":cur.o.name,t:(m.text||(m.audio?"Voice message":m.video?"Video":"Photo")).slice(0,80)};
   $("rn").textContent=rep.n;$("rt").textContent=rep.t;show("rbar",1);$("in").focus();
 }
 function clearRep(){rep=null;editing=null;show("rbar",0)}
@@ -452,7 +453,7 @@ $("rx").onclick=()=>{if(editing){$("in").value="";grow()}clearRep()};
 async function send(c){
   await addDoc(collection(db,"chats",cur.id,"messages"),{sender:me.uid,t:serverTimestamp(),seen:false,...c});
   await updateDoc(doc(db,"chats",cur.id),{
-    lastMsg:c.text||(c.audio?"Voice message":"Photo"),lastAt:serverTimestamp(),lastFrom:me.uid,lastDel:false,
+    lastMsg:c.text||(c.audio?"Voice message":c.video?"Video":"Photo"),lastAt:serverTimestamp(),lastFrom:me.uid,lastDel:false,
     ["unread."+cur.o.uid]:increment(1),["typing."+me.uid]:0
   });
 }
@@ -564,7 +565,7 @@ $("dl").onclick=async e=>{
 
 $("file").onchange=async()=>{
   const f=$("file").files[0];$("file").value="";
-  if(!f||!cur||noCloud())return;
+  if(f.type.startsWith("video/")){sendVideo(f);return}
   const box=$("msgs"),tmp=document.createElement("div"),pv=URL.createObjectURL(f);
   tmp.className="m me new upl";
   tmp.innerHTML='<div class="up"><img src="'+pv+'" alt=""><div class="ring"><svg viewBox="0 0 44 44"><circle class="bg" cx="22" cy="22" r="19"/><circle class="fg" cx="22" cy="22" r="19"/></svg><b>0%</b></div></div>';
@@ -727,4 +728,131 @@ $("pia").onclick=()=>{
   vurl=ou.photo;$("vimg").src=ou.photo;show("view",1);
   history.pushState({bt:"view"},"");vOpen=true;
 };
+
+/* ---------- Video messages (compress + upload, max 15 MB) ---------- */
+const VID_MAX_MB=15, VID_SRC_MAX_MB=200, VID_MAX_SEC=180, VID_SKIP_MB=2.5;
+const vcache=new Map();
+
+function pickVMime(){
+  return ["video/mp4;codecs=avc1.42E01E,mp4a.40.2","video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm"]
+    .find(m=>MediaRecorder.isTypeSupported(m))||"";
+}
+
+function compressVideo(file,onp,ctl){
+  return new Promise((resolve,reject)=>{
+    const url=URL.createObjectURL(file),v=document.createElement("video");
+    v.src=url;v.playsInline=true;v.preload="auto";
+    let ac=null,rec=null,raf=0,done=false,thumbed=false;
+    const cleanup=()=>{
+      if(done)return;done=true;cancelAnimationFrame(raf);
+      try{rec&&rec.state!=="inactive"&&rec.stop()}catch(e){}
+      try{ac&&ac.close()}catch(e){}
+      v.pause();v.removeAttribute("src");v.load();URL.revokeObjectURL(url);
+    };
+    ctl.cancel=()=>{if(done)return;cleanup();reject("cancel")};
+    v.onerror=()=>{if(done)return;cleanup();reject("This video format is not supported")};
+    v.onloadedmetadata=()=>{
+      const dur=v.duration;
+      if(!isFinite(dur)||dur<=0){cleanup();return reject("Could not read this video")}
+      if(dur>VID_MAX_SEC){cleanup();return reject("Video is too long (max "+Math.round(VID_MAX_SEC/60)+" minutes)")}
+      const maxSide=dur<=60?720:dur<=120?640:540;
+      const sc=Math.min(1,maxSide/Math.max(v.videoWidth,v.videoHeight));
+      const w=Math.round(v.videoWidth*sc/2)*2,h=Math.round(v.videoHeight*sc/2)*2;
+      const cv=document.createElement("canvas");cv.width=w;cv.height=h;
+      const cx=cv.getContext("2d");
+      const abr=64000,vbr=Math.max(250000,Math.min(2200000,(VID_MAX_MB*0.85)*8e6/dur-abr));
+      const mime=pickVMime();
+      let astream=null;
+      try{
+        ac=new (window.AudioContext||window.webkitAudioContext)();
+        const src=ac.createMediaElementSource(v),dest=ac.createMediaStreamDestination();
+        src.connect(dest);astream=dest.stream;         // speaker se nahi bajega
+        if(ac.state==="suspended")ac.resume();
+      }catch(e){astream=null}
+      const out=cv.captureStream(30);
+      if(astream)astream.getAudioTracks().forEach(t=>out.addTrack(t));
+      const chunks=[];
+      rec=new MediaRecorder(out,{mimeType:mime||undefined,videoBitsPerSecond:vbr,audioBitsPerSecond:abr});
+      rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+      rec.onstop=()=>{
+        if(done)return;
+        const type=(rec.mimeType||mime||"video/webm").split(";")[0];
+        const blob=new Blob(chunks,{type});
+        cleanup();resolve({blob,ext:/mp4/.test(type)?"mp4":"webm"});
+      };
+      const draw=()=>{
+        if(done)return;
+        cx.drawImage(v,0,0,w,h);
+        if(!thumbed){thumbed=true;try{ctl.thumb&&ctl.thumb(cv.toDataURL("image/jpeg",.6))}catch(e){}}
+        onp(Math.min(99,Math.round(v.currentTime/dur*100)));
+        if(v.requestVideoFrameCallback)v.requestVideoFrameCallback(draw);else raf=requestAnimationFrame(draw);
+      };
+      v.onended=()=>{if(!done&&rec.state!=="inactive")setTimeout(()=>rec.stop(),200)};
+      rec.start(1000);
+      v.play().then(draw).catch(()=>{cleanup();reject("Browser blocked video processing. Try again")});
+    };
+  });
+}
+
+function uploadVideo(blob,ext,onp,ctl){
+  return new Promise((res,rej)=>{
+    const fd=new FormData();
+    fd.append("file",blob,"video."+ext);fd.append("upload_preset",PRESET);
+    const x=new XMLHttpRequest();
+    x.open("POST","https://api.cloudinary.com/v1_1/"+CLOUD+"/video/upload");
+    x.upload.onprogress=e=>{if(e.lengthComputable)onp(Math.round(e.loaded/e.total*100))};
+    x.onload=()=>{try{const j=JSON.parse(x.responseText);j.secure_url?res(j.secure_url):rej((j.error&&j.error.message)||"Video upload failed")}catch(e){rej("Video upload failed")}};
+    x.onerror=()=>rej("Video upload failed");
+    x.onabort=()=>rej("cancel");
+    ctl.abort=()=>x.abort();
+    x.send(fd);
+  });
+}
+
+async function sendVideo(f){
+  const mb=f.size/1048576;
+  if(mb>VID_SRC_MAX_MB)return toast("Video is too large (max "+VID_SRC_MAX_MB+" MB)");
+  const canComp=!!(window.MediaRecorder&&HTMLCanvasElement.prototype.captureStream);
+  if(!canComp&&mb>VID_MAX_MB)return toast("This browser cannot compress. Video must be under "+VID_MAX_MB+" MB");
+  const chatId=cur.id,box=$("msgs"),tmp=document.createElement("div"),ctl={};
+  let stopped=false;
+  tmp.className="m me new upl";
+  tmp.innerHTML='<div class="up"><img alt="" style="visibility:hidden;min-height:140px"><div class="ring"><svg viewBox="0 0 44 44"><circle class="bg" cx="22" cy="22" r="19"/><circle class="fg" cx="22" cy="22" r="19"/></svg><b>0%</b></div></div><div class="vst">Preparing…</div><button class="vcx" type="button" aria-label="Cancel">✕</button>';
+  box.appendChild(tmp);box.scrollTop=box.scrollHeight;
+  const fg=tmp.querySelector(".fg"),pc=tmp.querySelector("b"),st=tmp.querySelector(".vst"),im=tmp.querySelector("img");
+  const setP=(p,t)=>{fg.style.strokeDashoffset=119.4*(1-p/100);pc.textContent=p+"%";if(t)st.textContent=t};
+  ctl.thumb=u=>{im.src=u;im.style.visibility="visible"};
+  tmp.querySelector(".vcx").onclick=()=>{stopped=true;ctl.cancel&&ctl.cancel();ctl.abort&&ctl.abort();tmp.remove()};
+  try{
+    let blob=f,ext=(f.name.split(".").pop()||"mp4").toLowerCase();
+    if(canComp&&mb>VID_SKIP_MB){
+      setP(0,"Compressing… keep the app open");
+      const r=await compressVideo(f,p=>setP(p),ctl);
+      blob=r.blob;ext=r.ext;
+    }
+    if(stopped)return;
+    if(blob.size>VID_MAX_MB*1048576)throw "Video is still above "+VID_MAX_MB+" MB. Send a shorter video";
+    setP(0,"Uploading…");
+    const url=await uploadVideo(blob,ext,p=>setP(p),ctl);
+    if(!cur||cur.id!==chatId)return toast("Chat changed, video not sent");
+    force=true;await send({video:url});
+  }catch(e){if(e!=="cancel")toast(typeof e==="string"?e:"Video upload failed")}
+  finally{tmp.remove()}
+}
+
+const vposter=u=>u.replace(/\.[a-z0-9]+$/i,".jpg");
+const vsrc=u=>(/\.webm$/i.test(u)&&!document.createElement("video").canPlayType("video/webm"))?u.replace(/\.webm$/i,".mp4"):u;
+
+function videoEl(m){
+  let w=vcache.get(m.id);
+  if(w)return w;                       // list dobara bane tab bhi video chalta rahe
+  w=document.createElement("div");w.className="vid";
+  const v=document.createElement("video");
+  v.controls=true;v.playsInline=true;v.preload="metadata";
+  v.poster=vposter(m.video);v.src=vsrc(m.video);
+  v.onerror=()=>{if(!v.dataset.fb){v.dataset.fb="1";v.src=m.video.replace(/\.[a-z0-9]+$/i,".mp4")}};
+  v.onclick=e=>e.stopPropagation();
+  w.appendChild(v);vcache.set(m.id,w);
+  return w;
+}
 sync();
