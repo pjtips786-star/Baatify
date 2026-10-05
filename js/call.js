@@ -8,6 +8,7 @@ const ICE=[{urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:
 const $=id=>document.getElementById(id);
 const ico=n=>'<svg class="i" aria-hidden="true"><use href="#i-'+n+'"/></svg>';
 let me=null,inited=false,call=null,pc=null,stream=null,mir=null,unsubs=[],pend=[],tick=null,ringT=null,t0=0;
+let facing="user",switching=false;
 
 function toast(t){const e=$("toast");if(!e)return;e.textContent=t;e.classList.add("on");setTimeout(()=>e.classList.remove("on"),5000)}
 function setStatus(t){$("cs").textContent=t}
@@ -33,12 +34,14 @@ function build(){
     '<div class="cbtns">'+
     '<button class="cb hide" id="cm" type="button" aria-label="Mute">'+ico("mic")+'</button>'+
     '<button class="cb hide" id="cc" type="button" aria-label="Camera">'+ico("video")+'</button>'+
+    '<button class="cb hide" id="cf" type="button" aria-label="Switch camera">'+ico("flip")+'</button>'+
     '<button class="cb red" id="ce" type="button" aria-label="End call">'+ico("phone")+'</button>'+
     '<button class="cb green hide" id="ck" type="button" aria-label="Accept">'+ico("phone")+'</button>'+
     '</div>';
   document.body.appendChild(b);
   $("ce").onclick=hang;
   $("ck").onclick=accept;
+  $("cf").onclick=switchCamera;
   $("cm").onclick=()=>{
     const t=stream&&stream.getAudioTracks()[0];if(!t)return;
     t.enabled=!t.enabled;$("cm").classList.toggle("off",!t.enabled);$("cm").innerHTML=ico(t.enabled?"mic":"micoff");
@@ -58,11 +61,20 @@ function showUI(name,st,inc,photo){
   $("ck").classList.toggle("hide",!inc);
   controls(false);
 }
+
 function controls(on){
+  const vid=on&&call.type==="video";
   $("cm").classList.toggle("hide",!on);
-  $("cc").classList.toggle("hide",!on||call.type==="audio");
+  $("cc").classList.toggle("hide",!vid);
+  $("cf").classList.toggle("hide",!vid);
   $("cm").classList.remove("off");$("cm").innerHTML=ico("mic");
   $("cc").classList.remove("off");$("cc").innerHTML=ico("video");
+  // sirf ek camera ho to switch button chhupa do
+  if(vid&&navigator.mediaDevices.enumerateDevices){
+    navigator.mediaDevices.enumerateDevices().then(d=>{
+      if(call&&d.filter(x=>x.kind==="videoinput").length<2)$("cf").classList.add("hide");
+    }).catch(()=>{});
+  }
 }
 
 async function media(type){
@@ -76,7 +88,7 @@ async function media(type){
   }
 }
 
-/* Video ko bhejne se pehle ulta (mirror) karo, taaki samne wale ko bhi mirror dikhe */
+/* Video ko bhejne se pehle mirror karo (front camera). swap() se camera badal sakte hain */
 function mirror(src){
   const vt=src.getVideoTracks()[0];
   if(!vt)return null;
@@ -84,12 +96,12 @@ function mirror(src){
   v.srcObject=new MediaStream([vt]);v.muted=true;v.playsInline=true;
   v.play().catch(()=>{});
   const c=document.createElement("canvas"),x=c.getContext("2d");
-  let run=true;
+  let run=true,flip=true;
   const draw=()=>{
     if(!run)return;
     if(v.videoWidth){
       if(c.width!==v.videoWidth||c.height!==v.videoHeight){c.width=v.videoWidth;c.height=v.videoHeight}
-      x.setTransform(-1,0,0,1,c.width,0);
+      if(flip)x.setTransform(-1,0,0,1,c.width,0);else x.setTransform(1,0,0,1,0,0);
       x.drawImage(v,0,0,c.width,c.height);
     }
     if(v.requestVideoFrameCallback)v.requestVideoFrameCallback(draw);
@@ -97,14 +109,46 @@ function mirror(src){
   };
   draw();
   const out=c.captureStream(30);
-  src.getAudioTracks().forEach(t=>out.addTrack(t));   // awaz wahi track, mute button kaam karega
-  return {out,stop(){run=false;v.srcObject=null}};
+  src.getAudioTracks().forEach(t=>out.addTrack(t));   // awaaz wahi track, mute button kaam karega
+  return {
+    out,
+    stop(){run=false;v.srcObject=null},
+    swap(track,f){flip=f;v.srcObject=new MediaStream([track]);v.play().catch(()=>{})}
+  };
 }
 
-// call ke liye jo stream pc ko dena hai: video ho to mirror wali, warna asli
 function outStream(type){
   if(type==="video"){mir=mirror(stream);if(mir)return mir.out}
   return stream;
+}
+
+/* ---------- Camera switch (front <-> back) ---------- */
+async function switchCamera(){
+  if(!stream||!call||call.type!=="video"||switching)return;
+  switching=true;
+  const gum=f=>navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:f}}});
+  const old=stream.getVideoTracks()[0],wasOn=old?old.enabled:true;
+  const want=facing==="user"?"environment":"user";
+  if(old)old.stop();                       // pehle purana camera band (kuch phones par ek hi camera khulta hai)
+  let nt=null;
+  try{
+    nt=(await gum(want)).getVideoTracks()[0];facing=want;
+  }catch(e){
+    try{nt=(await gum(facing)).getVideoTracks()[0];toast("Could not switch camera")}
+    catch(e2){toast("Camera unavailable");switching=false;return}
+  }
+  nt.enabled=wasOn;
+  const front=facing==="user";
+  if(mir)mir.swap(nt,front);
+  else if(pc){
+    const sd=pc.getSenders().find(s=>s.track&&s.track.kind==="video");
+    if(sd)await sd.replaceTrack(nt);
+  }
+  if(old)stream.removeTrack(old);
+  stream.addTrack(nt);
+  $("lv").srcObject=stream;
+  $("lv").classList.toggle("back",!front);   // back camera par mirror nahi
+  switching=false;
 }
 
 function mkpc(id,side,ready){
@@ -119,7 +163,7 @@ function mkpc(id,side,ready){
   p.ontrack=e=>{$("rv").srcObject=e.streams[0]};
   p.onconnectionstatechange=()=>{
     if(p.connectionState==="connected"){
-    $("call").classList.add("live");
+      $("call").classList.add("live");
       clearTimeout(ringT);t0=Date.now();clearInterval(tick);
       tick=setInterval(()=>setStatus(dur()),1000);setStatus("00:00");
     }
@@ -239,6 +283,7 @@ function end(msg,notify){
   if(mir){mir.stop();mir=null}
   if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
   $("rv").srcObject=null;$("lv").srcObject=null;
+  $("lv").classList.remove("back");facing="user";switching=false;
   if(notify&&id)updateDoc(doc(db,"calls",id),{status:"ended"}).catch(()=>{});
   call=null;pend=[];$("call").className="hide";
   if(msg)toast(msg);
