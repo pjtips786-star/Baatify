@@ -207,3 +207,9 @@ button.av{cursor:pointer}
 .pa span{font-size:13px;color:var(--text)}
 .pcard{background:var(--panel);border-radius:14px;padding:12px 16px;margin:0 16px 12px;text-align:left}
 .pcard small{color:var(--mute)}
+
+/* ----- Video message ----- */
+.vid{width:260px;max-width:100%}
+.vid video{display:block;width:100%;max-height:340px;border-radius:6px;background:#000}
+.vst{font-size:12px;color:var(--mute);margin-top:4px;text-align:center}
+.vcx{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;border:0;background:rgba(0,0,0,.55);color:#fff;cursor:pointer;z-index:2}
