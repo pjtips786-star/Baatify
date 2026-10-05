@@ -18,7 +18,7 @@ let me=null,cur=null,chats=null,chatsAll=[],msgs=[],seen=new Set();
 let first=false,force=false,selId=null,rep=null,editing=null,ou={},clr=0,vurl="",askRes,swiped=false;
 let unsubL,unsubM,unsubU,st,hb,lt=0;
 let inChat=false,vOpen=false,iOpen=false;
-let pinned=true,animUntil=0;
+let pinned=true,scAnim=null;
 const uc=new Map();
 const fmtDur=s=>{s=Math.floor(s||0);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
 let rec=null,pl=null;
@@ -291,7 +291,7 @@ function syncSel(){
 
 function renderMsgs(){
   const box=$("msgs"),top=box.scrollTop,prevH=box.scrollHeight;
-  const stickNow=first||force||pinned||Date.now()<animUntil;
+  const stickNow=first||force||pinned;
   box.textContent="";let day="",prev=null;
   const vis=msgs.filter(m=>!clr||tms(m.t)>clr);
   if(selId&&!vis.some(m=>m.id===selId))selId=null;
@@ -366,18 +366,28 @@ function renderMsgs(){
   if(first){box.scrollTop=box.scrollHeight;first=false;pinned=true}
   else if(stickNow){
     box.scrollTop=top;
-    if(force||box.scrollHeight>prevH||Date.now()<animUntil){
-      animUntil=Date.now()+700;
-      box.scrollTo({top:box.scrollHeight,behavior:"smooth"});
-    }
+    if(!scAnim&&(force||box.scrollHeight>prevH))smoothBottom();
     force=false;
   }else box.scrollTop=top;
   syncSel();
 }
 
 $("msgs").onclick=e=>{if(e.target===$("msgs")&&selId){selId=null;renderMsgs()}};
+/* ---------- Smooth scroll (list dobara bane tab bhi na ruke) ---------- */
+function smoothBottom(){
+  const box=$("msgs"),t0=performance.now(),from=box.scrollTop,dur=380;
+  (function step(now){
+    const k=Math.min(1,(now-t0)/dur),e=1-Math.pow(1-k,3);
+    const target=box.scrollHeight-box.clientHeight;      // har frame naya target
+    box.scrollTop=from+(target-from)*e;
+    if(k<1)scAnim=requestAnimationFrame(step);
+    else{scAnim=null;pinned=true}
+  })(t0);
+}
+function stopAnim(){if(scAnim){cancelAnimationFrame(scAnim);scAnim=null}}
+["touchstart","wheel","pointerdown"].forEach(ev=>$("msgs").addEventListener(ev,stopAnim,{passive:true}));
 $("msgs").addEventListener("scroll",()=>{
-  if(Date.now()<animUntil)return;
+  if(scAnim)return;                                       // apne animation ko ignore karo
   const b=$("msgs");pinned=b.scrollHeight-b.scrollTop-b.clientHeight<140;
 });
 
