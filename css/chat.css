@@ -91,8 +91,8 @@ button.av{cursor:pointer}
 
 .tk.wait .i{width:14px;height:14px;stroke-width:2.2}
 @media(prefers-reduced-motion:no-preference){
-  .m.new{animation:pop .18s ease-out}
-  @keyframes pop{from{opacity:0;transform:translateY(6px) scale(.97)}}
+  .m.new{animation:pop .3s cubic-bezier(.2,.8,.2,1)}
+  @keyframes pop{from{opacity:0;transform:translateY(22px) scale(.96)}}
 }
 
 /* ----- 3-dot menu ----- */
@@ -193,3 +193,17 @@ button.av{cursor:pointer}
 #call.video.live .cinfo{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));left:14px;margin:0;text-align:left;justify-items:start;gap:2px;z-index:3}
 #call.video.live .cinfo .av{display:none}
 #call.video.live .cinfo b{font-size:17px}
+
+/* ----- Contact info ----- */
+#pinfo{position:absolute;inset:0;z-index:7;background:var(--bg);display:flex;flex-direction:column;overflow-y:auto}
+#pinfo header b{flex:1}
+.pbody{padding:24px 0 calc(24px + env(safe-area-inset-bottom,0px));text-align:center}
+.pbig{width:150px;height:150px;font-size:60px;margin:0 auto 14px;cursor:pointer}
+.pn{font-size:22px;font-weight:600;padding:0 16px}
+.pu{color:var(--mute);margin-top:2px}
+.ps{color:var(--mute);margin-top:6px;font-size:14px;min-height:20px}
+.pacts{display:flex;justify-content:center;gap:14px;margin:20px 16px}
+.pa{flex:1;max-width:130px;background:var(--panel);border:0;border-radius:14px;padding:12px 8px;display:grid;gap:6px;place-items:center;color:var(--g);cursor:pointer}
+.pa span{font-size:13px;color:var(--text)}
+.pcard{background:var(--panel);border-radius:14px;padding:12px 16px;margin:0 16px 12px;text-align:left}
+.pcard small{color:var(--mute)}
