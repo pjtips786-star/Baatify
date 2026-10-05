@@ -1,6 +1,6 @@
 import {initializeApp} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
 import {getAuth} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
-import {getFirestore} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import {initializeFirestore,persistentLocalCache,persistentMultipleTabManager,getFirestore} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const firebaseConfig={
   apiKey:"AIzaSyCYEe6hR3GVd8S_rWB8_Y08FELShxMJ7F4",
@@ -13,6 +13,7 @@ const firebaseConfig={
 
 const app=initializeApp(firebaseConfig);
 export const auth=getAuth(app);
-export const db=getFirestore(app);
-export const MAILDOMAIN="baatify.app";   // baad mein mat badalna
-export const mail=u=>u+"@"+MAILDOMAIN;
+let _db;
+try{_db=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})})}
+catch(e){_db=getFirestore(app)}
+export const db=_db;

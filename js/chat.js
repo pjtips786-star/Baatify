@@ -1,6 +1,6 @@
 
 import {onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
-import {doc,getDoc,setDoc,updateDoc,addDoc,collection,query,where,orderBy,limit,startAt,endAt,onSnapshot,getDocs,serverTimestamp,increment} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import {doc,getDoc,setDoc,updateDoc,addDoc,collection,query,where,orderBy,limit,startAt,startAfter,endAt,onSnapshot,getDocs,serverTimestamp,increment} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const V=window.V||"";
 const {auth,db}=await import("./firebase.js"+V);
@@ -18,6 +18,8 @@ let me=null,cur=null,chats=null,chatsAll=[],msgs=[],seen=new Set();
 let first=false,force=false,selId=null,rep=null,editing=null,ou={},clr=0,vurl="",askRes,swiped=false;
 let unsubL,unsubM,unsubU,st,hb,lt=0;
 let inChat=false,vOpen=false,iOpen=false;
+let all=new Map(),hasMore=true,loadingOld=false;
+const PAGE=30;
 let pinned=true,scAnim=null;
 const uc=new Map();
 const fmtDur=s=>{s=Math.floor(s||0);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
@@ -94,7 +96,7 @@ async function boot(u){
   try{localStorage.setItem("bt_me",JSON.stringify({name:me.name,photo:me.photo||""}))}catch(e){}
   $("mn").textContent=me.name;setAv($("me"),me.name,me.photo);
   initCalls({uid:me.uid,name:me.name,photo:me.photo||""});
-  pres(true);clearInterval(hb);hb=setInterval(()=>{if(!document.hidden)pres(true)},30000);
+  pres(true);clearInterval(hb);hb=setInterval(()=>{if(!document.hidden)pres(true)},180000);
   unsubL&&unsubL();
   unsubL=onSnapshot(
     query(collection(db,"chats"),where("members","array-contains",u.uid)),
@@ -188,6 +190,7 @@ $("q").oninput=()=>{
   clearTimeout(st);
   const v=$("q").value.trim().toLowerCase().replace(/^@/,"");
   if(!v){show("res",0);show("list",1);return}
+  if(v.length<3){show("list",0);show("res",1);$("res").innerHTML='<p class="note">Type at least 3 letters</p>';return}
   st=setTimeout(()=>search(v),300);
 };
 
@@ -213,6 +216,7 @@ async function search(v){
 async function openChat(o){
   const id=[me.uid,o.uid].sort().join("_");
   cur={id,o};seen=new Set();vcache.clear();first=true;force=false;selId=null;editing=null;ou={};
+  all=new Map();hasMore=true;loadingOld=false;
   clr=clrOf(chatsAll.find(x=>x.id===id));
   unsubM&&unsubM();unsubU&&unsubU();clearRep();
   if(iOpen){iOpen=false;show("pinfo",0)}
@@ -229,11 +233,13 @@ async function openChat(o){
     ou=s.data(SNAP)||{};setAv($("oa"),o.name,ou.photo);status();
     if(iOpen)fillInfo();
   });
+let firstSnap=true;
   unsubM=onSnapshot(
-    query(collection(db,"chats",id,"messages"),orderBy("t")),
+    query(collection(db,"chats",id,"messages"),orderBy("t","desc"),limit(PAGE)),
     {includeMetadataChanges:true},
     s=>{
-      msgs=s.docs.map(d=>({id:d.id,...d.data(SNAP),pending:d.metadata.hasPendingWrites}));
+      if(firstSnap){hasMore=s.docs.length>=PAGE;firstSnap=false}
+      mergeMsgs(s.docs.map(d=>({id:d.id,...d.data(SNAP),pending:d.metadata.hasPendingWrites})));
       renderMsgs();markSeen();
     },
     ()=>toast("Cannot load messages")
@@ -266,9 +272,9 @@ function status(){
   const el=$("os");el.classList.remove("ty");
   const c=chatsAll.find(x=>x.id===cur.id);
   const tm=c&&c.typing?tms(c.typing[cur.o.uid]):0;
-  if(tm&&Date.now()-tm<5000){el.textContent="typing…";el.classList.add("ty");return}
+  if(tm&&Date.now()-tm<8000){el.textContent="typing…";el.classList.add("ty");return}
   const ls=tms(ou.lastSeen);
-  if(ou.online&&Date.now()-ls<75000){el.textContent="online";return}
+  if(ou.online&&Date.now()-ls<240000){el.textContent="online";return}
   if(!ls){el.textContent="";return}
   const dl=dayLabel(new Date(ls));
   el.textContent="last seen "+(dl==="Today"?"today":dl==="Yesterday"?"yesterday":dl)+" at "+fmt(new Date(ls));
@@ -390,8 +396,30 @@ function stopAnim(){if(scAnim){cancelAnimationFrame(scAnim);scAnim=null}}
 $("msgs").addEventListener("scroll",()=>{
   if(scAnim)return;                                       // apne animation ko ignore karo
   const b=$("msgs");pinned=b.scrollHeight-b.scrollTop-b.clientHeight<140;
+  if(b.scrollTop<60)loadOlder();
 });
 
+function mergeMsgs(list){
+  list.forEach(m=>all.set(m.id,m));
+  msgs=[...all.values()].sort((a,b)=>tms(a.t)-tms(b.t));
+}
+
+async function loadOlder(){
+  if(loadingOld||!hasMore||!cur||!msgs.length)return;
+  const first=msgs[0];
+  if(!first.t)return;
+  if(clr&&tms(first.t)<=clr){hasMore=false;return}       // clear ki hui chat ke purane messages mat padho
+  loadingOld=true;
+  const box=$("msgs"),prevH=box.scrollHeight,prevTop=box.scrollTop;
+  try{
+    const s=await getDocs(query(collection(db,"chats",cur.id,"messages"),orderBy("t","desc"),startAfter(first.t),limit(PAGE)));
+    hasMore=s.docs.length>=PAGE;
+    mergeMsgs(s.docs.map(d=>({id:d.id,...d.data(SNAP)})));
+    renderMsgs();
+    box.scrollTop=box.scrollHeight-prevH+prevTop;           // jagah wahi rahe, jump na kare
+  }catch(e){toast("Could not load older messages")}
+  loadingOld=false;
+}
 function markSeen(){
   if(!cur||document.hidden)return;
   msgs.forEach(m=>{
@@ -485,7 +513,7 @@ function grow(){const t=$("in");t.style.height="auto";t.style.height=Math.min(t.
 $("in").oninput=()=>{
   grow();if(!cur)return;
   const n=Date.now();
-  if(n-lt>2500){lt=n;updateDoc(doc(db,"chats",cur.id),{["typing."+me.uid]:serverTimestamp()}).catch(()=>{})}
+  if(n-lt>5000){lt=n;updateDoc(doc(db,"chats",cur.id),{["typing."+me.uid]:serverTimestamp()}).catch(()=>{})}
 };
 // Enter = nayi line. Message sirf send button se jayega.
 
