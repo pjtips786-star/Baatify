@@ -224,6 +224,7 @@ async function openChat(o){
   $("on").textContent=o.name;setAv($("oa"),o.name,"");$("os").textContent="";
   show("empty",0);show("pane",1);
   if(!inChat){history.pushState({bt:"chat"},"");inChat=true}
+  ytStop();
   $("app").classList.add("open");$("msgs").textContent="";
   try{
     if(!chatsAll.some(c=>c.id===id))
@@ -246,6 +247,7 @@ unsubM=onSnapshot(
 }
 
 function closeChat(resetUnread){
+ytStop();
 if(iOpen){iOpen=false;show("pinfo",0)}
 if(rec)recStop(true);
   if(pl){pl.a.pause();pl=null}
@@ -296,7 +298,9 @@ function syncSel(){
 function renderMsgs(){
   const box=$("msgs"),top=box.scrollTop,prevH=box.scrollHeight;
   const stickNow=first||force||pinned;
-  box.textContent="";let day="",prev=null;
+  [...box.children].forEach(c=>{if(c!==ytLayer)c.remove()});
+  if(!ytLayer.parentNode)box.appendChild(ytLayer);
+  let day="",prev=null;
   const vis=msgs.filter(m=>!clr||tms(m.t)>clr);
   if(selId&&!vis.some(m=>m.id===selId))selId=null;
 
@@ -331,7 +335,10 @@ function renderMsgs(){
         im.onclick=e=>{e.stopPropagation();vurl=m.img;$("vimg").src=m.img;show("view",1);history.pushState({bt:"view"},"");vOpen=true};
         el.appendChild(im);
       }else{
-        const t=document.createElement("div");t.textContent=m.text;el.appendChild(t);
+        const y=ytInfo(m.text);
+        const only=y&&!/\s/.test(m.text.trim());          // sirf link ho to link chhupao
+        if(!only){const t=document.createElement("div");t.textContent=m.text;el.appendChild(t)}
+        if(y)el.appendChild(ytCard(m,y));
       }
     }
     const meta=document.createElement("div");meta.className="meta";
@@ -375,6 +382,7 @@ function renderMsgs(){
     force=false;
   }else box.scrollTop=top;
   syncSel();
+  ytPos();
 }
 
 $("msgs").onclick=e=>{if(e.target===$("msgs")&&selId){selId=null;renderMsgs()}};
@@ -886,5 +894,52 @@ function videoEl(m){
   v.onclick=e=>e.stopPropagation();
   w.appendChild(v);vcache.set(m.id,w);
   return w;
+}
+/* ---------- YouTube links: bubble ke andar hi play ---------- */
+const ytLayer=document.createElement("div");ytLayer.className="ytl";
+let yt=null,ytTimer=0;
+
+function ytInfo(t){
+  const m=/\b(?:https?:\/\/)?(?:www\.|m\.|music\.)?(?:youtube\.com\/(?:watch\?(?:[^\s#]*&)?v=|shorts\/|live\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/i.exec(t||"");
+  return m?{vid:m[1],short:/\/shorts\//i.test(m[0])}:null;
+}
+
+function ytCard(m,y){
+  const w=document.createElement("div");
+  const c=document.createElement("div");
+  c.className="yt"+(y.short?" sh":"");c.dataset.yt=m.id;
+  c.style.backgroundImage='url("https://i.ytimg.com/vi/'+y.vid+'/hqdefault.jpg")';
+  c.setAttribute("role","button");c.setAttribute("aria-label","Play YouTube video");c.tabIndex=0;
+  c.innerHTML='<span class="ytp">'+ico("play")+'</span>';
+  c.onclick=e=>{e.stopPropagation();ytPlay(m.id,y.vid)};
+  c.onkeydown=e=>{if(e.key==="Enter")ytPlay(m.id,y.vid)};
+  const a=document.createElement("a");a.className="yto";a.target="_blank";a.rel="noopener";
+  a.href=y.short?"https://www.youtube.com/shorts/"+y.vid:"https://youtu.be/"+y.vid;
+  a.textContent="Open in YouTube";a.onclick=e=>e.stopPropagation();
+  w.append(c,a);return w;
+}
+
+function ytPlay(id,vid){
+  ytStop();
+  const wrap=document.createElement("div");wrap.className="ytw";
+  const f=document.createElement("iframe");
+  f.src="https://www.youtube-nocookie.com/embed/"+vid+"?autoplay=1&playsinline=1&rel=0&modestbranding=1&origin="+encodeURIComponent(location.origin);
+  f.allow="autoplay; encrypted-media; picture-in-picture; fullscreen";
+  f.allowFullscreen=true;f.referrerPolicy="strict-origin-when-cross-origin";f.title="YouTube video";
+  wrap.appendChild(f);ytLayer.appendChild(wrap);
+  yt={id,wrap};ytPos();
+  ytTimer=setInterval(ytPos,300);          // images load hone se jagah khiske to player saath chale
+}
+
+function ytStop(){clearInterval(ytTimer);if(yt){yt.wrap.remove();yt=null}}
+
+function ytPos(){
+  if(!yt)return;
+  const box=$("msgs"),ph=box.querySelector('[data-yt="'+yt.id+'"]');
+  if(!ph){ytStop();return}                  // message delete ho gaya
+  const r=ph.getBoundingClientRect(),b=box.getBoundingClientRect(),s=yt.wrap.style;
+  s.left=(r.left-b.left+box.scrollLeft)+"px";
+  s.top=(r.top-b.top+box.scrollTop)+"px";
+  s.width=r.width+"px";s.height=r.height+"px";
 }
 sync();
