@@ -198,7 +198,7 @@ async function search(v){
   show("list",0);show("res",1);
   const box=$("res");box.innerHTML='<p class="note">Searching…</p>';
   try{
-    const s=await getDocs(query(collection(db,"users"),orderBy("username"),startAt(v),endAt(v+"\uf8ff"),limit(10)));
+    const s=await getDocs(query(collection(db,"users"),orderBy("username"),startAt(v),endAt(v+"\uf8ff"),limit(5)));
     box.textContent="";let n=0;
     s.forEach(d=>{
       if(d.id===me.uid)return;n++;
@@ -233,12 +233,10 @@ async function openChat(o){
     ou=s.data(SNAP)||{};setAv($("oa"),o.name,ou.photo);status();
     if(iOpen)fillInfo();
   });
-let firstSnap=true;
-  unsubM=onSnapshot(
+unsubM=onSnapshot(
     query(collection(db,"chats",id,"messages"),orderBy("t","desc"),limit(PAGE)),
     {includeMetadataChanges:true},
     s=>{
-      if(firstSnap){hasMore=s.docs.length>=PAGE;firstSnap=false}
       mergeMsgs(s.docs.map(d=>({id:d.id,...d.data(SNAP),pending:d.metadata.hasPendingWrites})));
       renderMsgs();markSeen();
     },
@@ -536,15 +534,20 @@ $("cv").onclick=()=>cur&&startCall({...cur.o,photo:ou.photo||""},"video");
 
 /* ---------- Ping: DP par tap = owner ko Telegram notification (background) ---------- */
 const OWNER_UID="NDtG5NFf2khO0w2zGvBiltDhuKk2";   // tumhara Firebase User UID
+const PING_URL="https://baatify-ping.pjtips786.workers.dev";
 let lastPing=0;
-$("oa").onclick=()=>{
+$("oa").onclick=async()=>{
   if(!cur||cur.o.uid!==OWNER_UID)return;                 // sirf tumhari DP par chalega
   if(Date.now()-lastPing<15000)return toast("Already pinged, please wait");
   lastPing=Date.now();
-  fetch("notify.php",{cache:"no-store"})
-    .then(r=>r.text())
-    .then(t=>toast(t.startsWith("Sent")?"Ping sent":t.startsWith("Wait")?"Please wait a few seconds":"Ping failed"))
-    .catch(()=>toast("Ping failed"));
+  try{
+    const idToken=await auth.currentUser.getIdToken();
+    const r=await fetch(PING_URL,{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({idToken,to:cur.o.uid})});
+    const j=await r.json();
+    if(j.ok)toast("Ping sent");
+    else{lastPing=0;toast("Ping failed"+(j.detail?": "+j.detail:""))}
+  }catch(e){lastPing=0;toast("Ping failed")}
 };
 
 /* ---------- Photos (Cloudinary) ---------- */
@@ -593,6 +596,7 @@ $("dl").onclick=async e=>{
 
 $("file").onchange=async()=>{
   const f=$("file").files[0];$("file").value="";
+  if(!f||!cur||noCloud())return;
   if(f.type.startsWith("video/")){sendVideo(f);return}
   const box=$("msgs"),tmp=document.createElement("div"),pv=URL.createObjectURL(f);
   tmp.className="m me new upl";

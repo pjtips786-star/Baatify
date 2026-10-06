@@ -13,7 +13,12 @@ const firebaseConfig={
 
 const app=initializeApp(firebaseConfig);
 export const auth=getAuth(app);
+
+// local cache: padha hua data phone yaad rakhta hai, to reads kam lagte hain
 let _db;
 try{_db=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})})}
 catch(e){_db=getFirestore(app)}
 export const db=_db;
+
+export const MAILDOMAIN="baatify.app";   // baad mein kabhi mat badalna
+export const mail=u=>u+"@"+MAILDOMAIN;
