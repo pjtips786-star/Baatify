@@ -538,16 +538,16 @@ const PING_URL="https://baatify-ping.pjtips786.workers.dev";
 let lastPing=0;
 $("oa").onclick=async()=>{
   if(!cur||cur.o.uid!==OWNER_UID)return;                 // sirf tumhari DP par chalega
-  if(Date.now()-lastPing<15000)return toast("Already pinged, please wait");
+  if(Date.now()-lastPing<5000)return toast("Already notified, please wait");
   lastPing=Date.now();
   try{
     const idToken=await auth.currentUser.getIdToken();
     const r=await fetch(PING_URL,{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({idToken,to:cur.o.uid})});
     const j=await r.json();
-    if(j.ok)toast("Ping sent");
-    else{lastPing=0;toast("Ping failed"+(j.detail?": "+j.detail:""))}
-  }catch(e){lastPing=0;toast("Ping failed")}
+    if(j.ok)toast("notified ✓");
+    else{lastPing=0;toast("notification failed"+(j.detail?": "+j.detail:""))}
+  }catch(e){lastPing=0;toast("notification failed")}
 };
 
 /* ---------- Photos (Cloudinary) ---------- */
