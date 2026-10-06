@@ -905,7 +905,6 @@ function ytInfo(t){
 }
 
 function ytCard(m,y){
-  const w=document.createElement("div");
   const c=document.createElement("div");
   c.className="yt"+(y.short?" sh":"");c.dataset.yt=m.id;
   c.style.backgroundImage='url("https://i.ytimg.com/vi/'+y.vid+'/hqdefault.jpg")';
@@ -913,10 +912,7 @@ function ytCard(m,y){
   c.innerHTML='<span class="ytp">'+ico("play")+'</span>';
   c.onclick=e=>{e.stopPropagation();ytPlay(m.id,y.vid)};
   c.onkeydown=e=>{if(e.key==="Enter")ytPlay(m.id,y.vid)};
-  const a=document.createElement("a");a.className="yto";a.target="_blank";a.rel="noopener";
-  a.href=y.short?"https://www.youtube.com/shorts/"+y.vid:"https://youtu.be/"+y.vid;
-  a.textContent="Open in YouTube";a.onclick=e=>e.stopPropagation();
-  w.append(c,a);return w;
+  return c;
 }
 
 function ytPlay(id,vid){
