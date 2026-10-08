@@ -296,6 +296,7 @@ function syncSel(){
 }
 
 function renderMsgs(){
+  setCW();
   const box=$("msgs"),top=box.scrollTop,prevH=box.scrollHeight;
   const stickNow=first||force||pinned;
   [...box.children].forEach(c=>{if(c!==ytLayer)c.remove()});
@@ -933,40 +934,40 @@ async function resolveFb(u){
 function parseLink(u){
   let m;
   const H=location.hostname,dark=matchMedia("(prefers-color-scheme:dark)").matches;
-  const E=(p,src,w,ar,o)=>Object.assign({k:"embed",p,src,w,ar},o||{});   // view:true = photo/post, rp:true = replay button
+  const E=(p,src,w,ar,o)=>Object.assign({k:"embed",p,src,w,ar},o||{});   // view:true = photo/post, rp:true = replay (sirf Instagram video)
   if(m=R.yt.exec(u)){
     const sh=/youtube\.com\/shorts\//i.test(u);
     return E("YouTube","https://www.youtube-nocookie.com/embed/"+m[1]+"?autoplay=1&playsinline=1&rel=0&modestbranding=1&origin="+encodeURIComponent(location.origin),
       CW,sh?9/16:16/9,{thumb:"https://i.ytimg.com/vi/"+m[1]+"/hqdefault.jpg"});
   }
   if(m=R.vimeo.exec(u))return E("Vimeo","https://player.vimeo.com/video/"+m[1]+(m[2]?"?h="+m[2]+"&":"?")+"autoplay=1",CW,16/9);
-  if(m=R.tiktok.exec(u))return E("TikTok","https://www.tiktok.com/embed/v2/"+m[1],CW,9/16,{rp:true});
-  if(m=R.x.exec(u))return E("X","https://platform.twitter.com/embed/Tweet.html?id="+m[1]+"&dnt=true&theme="+(dark?"dark":"light"),340,340/520,{view:true});
-  if(m=R.spotify.exec(u))return E("Spotify","https://open.spotify.com/embed/"+m[1]+"/"+m[2],340,340/(/^(track|episode)$/.test(m[1])?152:352));
+  if(m=R.tiktok.exec(u))return E("TikTok","https://www.tiktok.com/embed/v2/"+m[1],CW,9/16);
+  if(m=R.x.exec(u))return E("X","https://platform.twitter.com/embed/Tweet.html?id="+m[1]+"&dnt=true&theme="+(dark?"dark":"light"),CW,CW/520,{view:true});
+  if(m=R.spotify.exec(u))return E("Spotify","https://open.spotify.com/embed/"+m[1]+"/"+m[2],CW,CW/(/^(track|episode)$/.test(m[1])?152:352));
   if(m=R.ig.exec(u)){
-    const reel=m[1]==="reel";
-    return E("Instagram","https://www.instagram.com/"+m[1]+"/"+m[2]+"/embed/",CW,reel?9/16:CW/580,{view:!reel,rp:true});
+    const vid=m[1]==="reel"||m[1]==="tv";
+    return E("Instagram","https://www.instagram.com/"+m[1]+"/"+m[2]+"/embed/",CW,vid?9/16:CW/580,{view:!vid,rp:vid});
   }
   if(m=R.fb.exec(u)){
     const href=m[0].replace(/\/\/(?:m|web)\./,"//www."),rl=/\/reel\//.test(href);
-    return E("Facebook",fbSrc(href),CW,rl?9/16:16/9,{rp:true});
+    return E("Facebook",fbSrc(href),CW,rl?9/16:16/9);
   }
   if(m=R.fbs.exec(u)){
-    if(fbBad.has(m[0]))return null;                                   // asli link nahi mila tha: sirf neela link
-    return E("Facebook",null,CW,9/16,{lazy:true,from:m[0],rp:true});  // size tay, kabhi badlega nahi
+    if(fbBad.has(m[0]))return null;                         // asli link nahi mila tha: sirf neela link
+    return E("Facebook",null,CW,9/16,{lazy:true,from:m[0]});
   }
-  if(m=R.snap.exec(u))return E("Snapchat","https://www.snapchat.com/"+m[1]+"/"+m[2]+"/embed",CW,CW/580,{view:m[1]==="lens",rp:true});
-  if(m=R.tg.exec(u))return E("Telegram","https://t.me/"+m[1]+"/"+m[2]+"?embed=1&mode=tme",340,340/380,{view:true});
+  if(m=R.snap.exec(u))return E("Snapchat","https://www.snapchat.com/"+m[1]+"/"+m[2]+"/embed",CW,CW/580,{view:m[1]==="lens"});
+  if(m=R.tg.exec(u))return E("Telegram","https://t.me/"+m[1]+"/"+m[2]+"?embed=1&mode=tme",CW,CW/380,{view:true});
   if(m=R.dm.exec(u))return E("Dailymotion","https://www.dailymotion.com/embed/video/"+m[1]+"?autoplay=1",CW,16/9);
   if(m=R.twv.exec(u))return E("Twitch","https://player.twitch.tv/?video=v"+m[1]+"&parent="+H+"&autoplay=true",CW,16/9);
   if(m=R.twc.exec(u))return E("Twitch","https://clips.twitch.tv/embed?clip="+m[1]+"&parent="+H+"&autoplay=true",CW,16/9);
   if((m=R.sc.exec(u))&&!SC_BAD.test(m[1])&&(m[2].toLowerCase()==="sets"?!!m[3]:!SC_BAD.test(m[2])))
-    return E("SoundCloud","https://w.soundcloud.com/player/?url="+encodeURIComponent(u)+"&auto_play=true&visual=false&show_comments=false",340,340/166);
+    return E("SoundCloud","https://w.soundcloud.com/player/?url="+encodeURIComponent(u)+"&auto_play=true&visual=false&show_comments=false",CW,CW/166);
   const ext=((/\.([a-z0-9]{2,5})$/i.exec(u.split(/[?#]/)[0])||[])[1]||"").toLowerCase();
   if(VIDX.includes(ext))return {k:"video"};
   if(AUDX.includes(ext))return {k:"audio"};
   if(IMGX.includes(ext))return {k:"image"};
-  return null;                                  // Google Drive samet baaki sab: neela clickable link
+  return null;
 }
 
 function cleanUrl(u){const m=TRAIL.exec(u);return m?[u.slice(0,-m[0].length),m[0]]:[u,""]}
@@ -1019,14 +1020,17 @@ function mediaEl(m,x,url){
   w.appendChild(el);vcache.set(key,w);return w;
 }
 
-// card ka size: sabka width ek jaisa (YouTube, Shorts, Instagram...)
-function sizeCard(c,x){
-  const w=Math.min(x.w,innerWidth*0.84,innerHeight*0.7*9/16);
-  c.style.width=Math.round(w)+"px";c.style.aspectRatio=x.ar;
+// sab cards ka width ek jaisa: screen ki chaudai se tay hota hai, keyboard se nahi badalta
+function setCW(){
+  const b=$("msgs"),bw=b.clientWidth||innerWidth;
+  b.style.setProperty("--cw",Math.round(Math.min(CW,bw*0.86,screen.height*0.42))+"px");
 }
+addEventListener("resize",setCW);
 
-// embed card: pehle placeholder, tap par asli player
+function sizeCard(c,x){c.style.aspectRatio=x.ar}
+
 function embedCard(m,x){
+  const w=document.createElement("div");w.className="lcw";
   const c=document.createElement("div");
   c.className="lc";c.dataset.yt=m.id;
   sizeCard(c,x);
@@ -1042,7 +1046,7 @@ function embedCard(m,x){
       try{x.src=fbSrc(await resolveFb(x.from));x.lazy=false}
       catch(err){
         fbBad.add(x.from);                         // nahi mila: seedha neela link
-        const d=document.createElement("div");d.appendChild(linkify(x.from));c.replaceWith(d);
+        const d=document.createElement("div");d.appendChild(linkify(x.from));w.replaceWith(d);
         toast("Could not open this Facebook link as video");return;
       }
       c.classList.remove("ld");nm.textContent=x.p;
@@ -1050,7 +1054,14 @@ function embedCard(m,x){
     ytPlay(m.id,x);
   };
   c.onclick=go;c.onkeydown=e=>{if(e.key==="Enter")go(e)};
-  return c;
+  w.appendChild(c);
+  if(x.rp){                                        // sirf Instagram video: card ke neeche Replay
+    const b=document.createElement("button");b.type="button";b.className="lrp";
+    b.innerHTML=ico("replay")+"<span>Replay</span>";
+    b.onclick=e=>{e.stopPropagation();if(yt&&yt.id===m.id)ytReload();else go()};
+    w.appendChild(b);
+  }
+  return w;
 }
 
 const ytLayer=document.createElement("div");ytLayer.className="ytl";
@@ -1066,15 +1077,15 @@ function ytPlay(id,x){
   f.allowFullscreen=true;f.referrerPolicy="strict-origin-when-cross-origin";f.title=x.p;
   f.setAttribute("sandbox","allow-scripts allow-same-origin allow-presentation");   // andar ke links kahin nahi kholenge
   wrap.appendChild(f);
-  if(x.rp){                                        // replay: player dobara load
-    const b=document.createElement("button");b.type="button";b.className="ytr";b.setAttribute("aria-label","Replay");
-    b.innerHTML=ico("replay");
-    b.onclick=e=>{e.stopPropagation();const s=f.src;f.src="about:blank";setTimeout(()=>{f.src=s},60)};
-    wrap.appendChild(b);
-  }
   ytLayer.appendChild(wrap);
   yt={id,wrap};ytPos();
   ytTimer=setInterval(ytPos,300);          // jagah khiske to player saath chale
+}
+
+function ytReload(){                       // player dobara load: video phir se chalega
+  if(!yt)return;
+  const f=yt.wrap.querySelector("iframe"),s=f.src;
+  f.src="about:blank";setTimeout(()=>{f.src=s},80);
 }
 
 function ytStop(){clearInterval(ytTimer);if(yt){yt.wrap.remove();yt=null}}
