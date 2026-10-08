@@ -335,10 +335,7 @@ function renderMsgs(){
         im.onclick=e=>{e.stopPropagation();vurl=m.img;$("vimg").src=m.img;show("view",1);history.pushState({bt:"view"},"");vOpen=true};
         el.appendChild(im);
       }else{
-        const y=ytInfo(m.text);
-        const only=y&&!/\s/.test(m.text.trim());          // sirf link ho to link chhupao
-        if(!only){const t=document.createElement("div");t.textContent=m.text;el.appendChild(t)}
-        if(y)el.appendChild(ytCard(m,y));
+        el.appendChild(renderText(m));
       }
     }
     const meta=document.createElement("div");meta.className="meta";
@@ -895,36 +892,138 @@ function videoEl(m){
   w.appendChild(v);vcache.set(m.id,w);
   return w;
 }
-/* ---------- YouTube links: bubble ke andar hi play ---------- */
-const ytLayer=document.createElement("div");ytLayer.className="ytl";
-let yt=null,ytTimer=0;
+/* ---------- Links: embed cards + seedhe media + clickable links ---------- */
+const URL_RE=/(?:https?:\/\/|www\.)[^\s<>"']+/gi;
+const TRAIL=/[.,;:!?)\]}'"]+$/;
+const VIDX=["mp4","webm","mov","m4v","ogv"],AUDX=["mp3","m4a","wav","ogg","aac","opus","flac"],IMGX=["jpg","jpeg","png","gif","webp","avif","bmp"];
+const R={
+  yt:/(?:youtube\.com\/(?:watch\?(?:[^#\s]*&)?v=|shorts\/|live\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/i,
+  vimeo:/vimeo\.com\/(?:video\/|channels\/[\w-]+\/|groups\/[\w-]+\/videos\/)?(\d{6,})(?:\/([a-f0-9]{8,}))?/i,
+  tiktok:/tiktok\.com\/(?:@[\w.\-]+\/video|embed\/v2|v)\/(\d{10,})/i,
+  x:/\b(?:twitter|x)\.com\/\w+\/status(?:es)?\/(\d+)/i,
+  spotify:/open\.spotify\.com\/(?:intl-\w+\/)?(track|album|playlist|episode|show|artist)\/([A-Za-z0-9]+)/i,
+  ig:/instagram\.com\/(?:[\w.]+\/)?(p|reel|tv)\/([\w-]+)/i,
+  fb:/https?:\/\/(?:www\.|m\.|web\.)?facebook\.com\/(?:watch\/?\?v=\d+|[\w.\-]+\/videos\/(?:[\w.\-]+\/)?\d+|reel\/\d+|video\.php\?v=\d+)/i,
+  pin:/pinterest\.[a-z.]+\/pin\/(\d+)/i,
+  snap:/snapchat\.com\/(spotlight|lens)\/([\w-]+)/i,
+  tg:/(?:^|\/\/)t\.me\/([A-Za-z]\w{3,})\/(\d+)/i,
+  dm:/(?:dailymotion\.com\/video\/|dai\.ly\/)([A-Za-z0-9]+)/i,
+  twv:/twitch\.tv\/videos\/(\d+)/i,
+  twc:/(?:clips\.twitch\.tv\/|twitch\.tv\/\w+\/clip\/)([\w-]+)/i,
+  gd:/drive\.google\.com\/file\/d\/([\w-]+)/i,
+  sc:/soundcloud\.com\/([\w-]+)\/([\w-]+)(?:\/([\w-]+))?/i
+};
+const SC_BAD=/^(?:likes|followers|following|reposts|tracks|albums|sets|popular-tracks|discover|you|stream|search|upload|pages|settings|messages|notifications|charts)$/i;
 
-function ytInfo(t){
-  const m=/\b(?:https?:\/\/)?(?:www\.|m\.|music\.)?(?:youtube\.com\/(?:watch\?(?:[^\s#]*&)?v=|shorts\/|live\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/i.exec(t||"");
-  return m?{vid:m[1],short:/\/shorts\//i.test(m[0])}:null;
+function parseLink(u){
+  let m;
+  const H=location.hostname,dark=matchMedia("(prefers-color-scheme:dark)").matches;
+  const E=(p,src,w,ar,thumb)=>({k:"embed",p,src,w,ar,thumb});
+  if(m=R.yt.exec(u)){
+    const sh=/youtube\.com\/shorts\//i.test(u);
+    return E("YouTube","https://www.youtube-nocookie.com/embed/"+m[1]+"?autoplay=1&playsinline=1&rel=0&modestbranding=1&origin="+encodeURIComponent(location.origin),
+      sh?200:280,sh?9/16:16/9,"https://i.ytimg.com/vi/"+m[1]+"/hqdefault.jpg");
+  }
+  if(m=R.vimeo.exec(u))return E("Vimeo","https://player.vimeo.com/video/"+m[1]+(m[2]?"?h="+m[2]+"&":"?")+"autoplay=1",280,16/9);
+  if(m=R.tiktok.exec(u))return E("TikTok","https://www.tiktok.com/embed/v2/"+m[1],260,9/16);
+  if(m=R.x.exec(u))return E("X","https://platform.twitter.com/embed/Tweet.html?id="+m[1]+"&dnt=true&theme="+(dark?"dark":"light"),300,300/420);
+  if(m=R.spotify.exec(u))return E("Spotify","https://open.spotify.com/embed/"+m[1]+"/"+m[2],300,300/(/^(track|episode)$/.test(m[1])?152:352));
+  if(m=R.ig.exec(u))return E("Instagram","https://www.instagram.com/"+m[1]+"/"+m[2]+"/embed/",300,300/(m[1]==="reel"?540:470));
+  if(m=R.fb.exec(u)){
+    const href=m[0].replace(/\/\/(?:m|web)\./,"//www."),rl=/\/reel\//.test(href);
+    return E("Facebook","https://www.facebook.com/plugins/video.php?href="+encodeURIComponent(href)+"&show_text=false&autoplay=true",rl?240:300,rl?9/16:16/9);
+  }
+  if(m=R.pin.exec(u))return E("Pinterest","https://assets.pinterest.com/ext/embed.html?id="+m[1],260,260/430);
+  if(m=R.snap.exec(u))return E("Snapchat","https://www.snapchat.com/"+m[1]+"/"+m[2]+"/embed",300,300/520);
+  if(m=R.tg.exec(u))return E("Telegram","https://t.me/"+m[1]+"/"+m[2]+"?embed=1&mode=tme",300,300/320);
+  if(m=R.dm.exec(u))return E("Dailymotion","https://www.dailymotion.com/embed/video/"+m[1]+"?autoplay=1",280,16/9);
+  if(m=R.twv.exec(u))return E("Twitch","https://player.twitch.tv/?video=v"+m[1]+"&parent="+H+"&autoplay=true",280,16/9);
+  if(m=R.twc.exec(u))return E("Twitch","https://clips.twitch.tv/embed?clip="+m[1]+"&parent="+H+"&autoplay=true",280,16/9);
+  if(m=R.gd.exec(u))return E("Google Drive","https://drive.google.com/file/d/"+m[1]+"/preview",280,16/9);
+  if((m=R.sc.exec(u))&&!SC_BAD.test(m[1])&&(m[2].toLowerCase()==="sets"?!!m[3]:!SC_BAD.test(m[2])))
+    return E("SoundCloud","https://w.soundcloud.com/player/?url="+encodeURIComponent(u)+"&auto_play=true&visual=false&show_comments=false",300,300/166);
+  const ext=((/\.([a-z0-9]{2,5})$/i.exec(u.split(/[?#]/)[0])||[])[1]||"").toLowerCase();
+  if(VIDX.includes(ext))return {k:"video"};
+  if(AUDX.includes(ext))return {k:"audio"};
+  if(IMGX.includes(ext))return {k:"image"};
+  return null;
 }
 
-function ytCard(m,y){
+function cleanUrl(u){const m=TRAIL.exec(u);return m?[u.slice(0,-m[0].length),m[0]]:[u,""]}
+const fullUrl=u=>/^https?:/i.test(u)?u:"https://"+u;
+
+// poore text mein har link clickable
+function linkify(text){
+  const frag=document.createDocumentFragment();let last=0;
+  for(const m of text.matchAll(URL_RE)){
+    const [u,tail]=cleanUrl(m[0]);
+    if(m.index>last)frag.append(text.slice(last,m.index));
+    const a=document.createElement("a");
+    a.className="lk";a.textContent=u;a.href=fullUrl(u);a.target="_blank";a.rel="noopener noreferrer";
+    a.onclick=e=>e.stopPropagation();
+    frag.append(a);
+    last=m.index+m[0].length-tail.length;
+  }
+  if(last<text.length)frag.append(text.slice(last));
+  return frag;
+}
+
+function renderText(m){
+  const w=document.createDocumentFragment();
+  const links=[...m.text.matchAll(URL_RE)].map(x=>fullUrl(cleanUrl(x[0])[0]));
+  let info=null,url="";
+  for(const u of links){const p=parseLink(u);if(p){info=p;url=u;break}}
+  const only=!!info&&links.length===1&&m.text.replace(URL_RE,"").trim()==="";   // sirf link ho to link chhupao
+  if(!only){const t=document.createElement("div");t.appendChild(linkify(m.text));w.appendChild(t)}
+  if(info)w.appendChild(info.k==="embed"?embedCard(m,info):mediaEl(m,info,url));
+  return w;
+}
+
+// seedhe photo / video / audio links bubble ke andar
+function mediaEl(m,x,url){
+  const key=m.id+"|m";let w=vcache.get(key);
+  if(w)return w;                                  // list dobara bane tab bhi chalta rahe
+  w=document.createElement("div");w.className="lm";
+  const fail=()=>{w.textContent="";const d=document.createElement("div");d.appendChild(linkify(url));w.appendChild(d)};
+  let el;
+  if(x.k==="video"){el=document.createElement("video");el.controls=true;el.playsInline=true;el.preload="metadata";el.src=url;el.onclick=e=>e.stopPropagation()}
+  else if(x.k==="audio"){el=document.createElement("audio");el.controls=true;el.preload="none";el.src=url;el.onclick=e=>e.stopPropagation()}
+  else{
+    el=document.createElement("img");el.alt="";el.loading="lazy";el.referrerPolicy="no-referrer";el.src=url;
+    el.onclick=e=>{e.stopPropagation();vurl=url;$("vimg").src=url;show("view",1);history.pushState({bt:"view"},"");vOpen=true};
+  }
+  el.onerror=fail;                                // na chale to seedha clickable link
+  w.appendChild(el);vcache.set(key,w);return w;
+}
+
+// embed card: pehle placeholder, tap par asli player
+function embedCard(m,x){
   const c=document.createElement("div");
-  c.className="yt"+(y.short?" sh":"");c.dataset.yt=m.id;
-  c.style.backgroundImage='url("https://i.ytimg.com/vi/'+y.vid+'/hqdefault.jpg")';
-  c.setAttribute("role","button");c.setAttribute("aria-label","Play YouTube video");c.tabIndex=0;
-  c.innerHTML='<span class="ytp">'+ico("play")+'</span>';
-  c.onclick=e=>{e.stopPropagation();ytPlay(m.id,y.vid)};
-  c.onkeydown=e=>{if(e.key==="Enter")ytPlay(m.id,y.vid)};
+  c.className="lc";c.dataset.yt=m.id;
+  c.style.width="min("+x.w+"px,72vw)";c.style.aspectRatio=x.ar;
+  if(x.thumb)c.style.backgroundImage='url("'+x.thumb+'")';
+  c.setAttribute("role","button");c.setAttribute("aria-label","Play "+x.p);c.tabIndex=0;
+  c.innerHTML='<span class="lcp">'+ico("play")+'</span><span class="lcn"></span>';
+  c.querySelector(".lcn").textContent=x.p;
+  c.onclick=e=>{e.stopPropagation();ytPlay(m.id,x)};
+  c.onkeydown=e=>{if(e.key==="Enter")ytPlay(m.id,x)};
   return c;
 }
 
-function ytPlay(id,vid){
+const ytLayer=document.createElement("div");ytLayer.className="ytl";
+let yt=null,ytTimer=0;
+
+function ytPlay(id,x){
   ytStop();
   const wrap=document.createElement("div");wrap.className="ytw";
   const f=document.createElement("iframe");
-  f.src="https://www.youtube-nocookie.com/embed/"+vid+"?autoplay=1&playsinline=1&rel=0&modestbranding=1&origin="+encodeURIComponent(location.origin);
-  f.allow="autoplay; encrypted-media; picture-in-picture; fullscreen";
-  f.allowFullscreen=true;f.referrerPolicy="strict-origin-when-cross-origin";f.title="YouTube video";
+  f.src=x.src;
+  f.allow="autoplay; encrypted-media; picture-in-picture; fullscreen; clipboard-write";
+  f.allowFullscreen=true;f.referrerPolicy="strict-origin-when-cross-origin";f.title=x.p;
+  f.setAttribute("sandbox","allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-presentation allow-forms");
   wrap.appendChild(f);ytLayer.appendChild(wrap);
   yt={id,wrap};ytPos();
-  ytTimer=setInterval(ytPos,300);          // images load hone se jagah khiske to player saath chale
+  ytTimer=setInterval(ytPos,300);          // jagah khiske to player saath chale
 }
 
 function ytStop(){clearInterval(ytTimer);if(yt){yt.wrap.remove();yt=null}}
