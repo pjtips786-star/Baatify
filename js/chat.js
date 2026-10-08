@@ -335,7 +335,7 @@ function renderMsgs(){
         im.onclick=e=>{e.stopPropagation();vurl=m.img;$("vimg").src=m.img;show("view",1);history.pushState({bt:"view"},"");vOpen=true};
         el.appendChild(im);
       }else{
-        el.appendChild(renderText(m));
+        el.appendChild(renderText(m,el));
       }
     }
     const meta=document.createElement("div");meta.className="meta";
@@ -904,7 +904,7 @@ const R={
   spotify:/open\.spotify\.com\/(?:intl-\w+\/)?(track|album|playlist|episode|show|artist)\/([A-Za-z0-9]+)/i,
   ig:/instagram\.com\/(?:[\w.]+\/)?(p|reel|tv)\/([\w-]+)/i,
   fb:/https?:\/\/(?:www\.|m\.|web\.)?facebook\.com\/(?:watch\/?\?v=\d+|[\w.\-]+\/videos\/(?:[\w.\-]+\/)?\d+|reel\/\d+|video\.php\?v=\d+)/i,
-  pin:/pinterest\.[a-z.]+\/pin\/(\d+)/i,
+  fbs:/https?:\/\/(?:(?:www\.|m\.|web\.)?facebook\.com\/share\/[vr]\/[\w-]+|fb\.watch\/[\w-]+)/i,
   snap:/snapchat\.com\/(spotlight|lens)\/([\w-]+)/i,
   tg:/(?:^|\/\/)t\.me\/([A-Za-z]\w{3,})\/(\d+)/i,
   dm:/(?:dailymotion\.com\/video\/|dai\.ly\/)([A-Za-z0-9]+)/i,
@@ -915,32 +915,55 @@ const R={
 };
 const SC_BAD=/^(?:likes|followers|following|reposts|tracks|albums|sets|popular-tracks|discover|you|stream|search|upload|pages|settings|messages|notifications|charts)$/i;
 
+const fbBad=new Set();
+let fbRes={};try{fbRes=JSON.parse(localStorage.getItem("bt_fbres")||"{}")}catch(e){}
+const fbSrc=h=>"https://www.facebook.com/plugins/video.php?href="+encodeURIComponent(h)+"&show_text=false&autoplay=true";
+
+// Facebook share / fb.watch link ko Worker se asli video link mein badlo
+async function resolveFb(u){
+  if(fbRes[u])return fbRes[u];
+  const r=await fetch(PING_URL+"?r="+encodeURIComponent(u));
+  const j=await r.json();
+  if(!j.url)throw new Error("noresolve");
+  fbRes[u]=j.url;
+  try{localStorage.setItem("bt_fbres",JSON.stringify(fbRes))}catch(e){}
+  return j.url;
+}
+
 function parseLink(u){
   let m;
   const H=location.hostname,dark=matchMedia("(prefers-color-scheme:dark)").matches;
-  const E=(p,src,w,ar,thumb,view)=>({k:"embed",p,src,w,ar,thumb,view:!!view});   // view=true: photo/post (aankh ka icon)
+  const E=(p,src,w,ar,o)=>Object.assign({k:"embed",p,src,w,ar},o||{});   // view:true = photo/post (aankh ka icon)
   if(m=R.yt.exec(u)){
     const sh=/youtube\.com\/shorts\//i.test(u);
     return E("YouTube","https://www.youtube-nocookie.com/embed/"+m[1]+"?autoplay=1&playsinline=1&rel=0&modestbranding=1&origin="+encodeURIComponent(location.origin),
-      sh?200:280,sh?9/16:16/9,"https://i.ytimg.com/vi/"+m[1]+"/hqdefault.jpg");
+      sh?300:360,sh?9/16:16/9,{thumb:"https://i.ytimg.com/vi/"+m[1]+"/hqdefault.jpg"});
   }
-  if(m=R.vimeo.exec(u))return E("Vimeo","https://player.vimeo.com/video/"+m[1]+(m[2]?"?h="+m[2]+"&":"?")+"autoplay=1",280,16/9);
-  if(m=R.tiktok.exec(u))return E("TikTok","https://www.tiktok.com/embed/v2/"+m[1],260,9/16);
-  if(m=R.x.exec(u))return E("X","https://platform.twitter.com/embed/Tweet.html?id="+m[1]+"&dnt=true&theme="+(dark?"dark":"light"),300,300/420,null,true);
-  if(m=R.spotify.exec(u))return E("Spotify","https://open.spotify.com/embed/"+m[1]+"/"+m[2],300,300/(/^(track|episode)$/.test(m[1])?152:352));
-  if(m=R.ig.exec(u))return E("Instagram","https://www.instagram.com/"+m[1]+"/"+m[2]+"/embed/",300,300/(m[1]==="reel"?540:470),null,m[1]!=="reel");
+  if(m=R.vimeo.exec(u))return E("Vimeo","https://player.vimeo.com/video/"+m[1]+(m[2]?"?h="+m[2]+"&":"?")+"autoplay=1",360,16/9);
+  if(m=R.tiktok.exec(u))return E("TikTok","https://www.tiktok.com/embed/v2/"+m[1],300,9/16);
+  if(m=R.x.exec(u))return E("X","https://platform.twitter.com/embed/Tweet.html?id="+m[1]+"&dnt=true&theme="+(dark?"dark":"light"),340,340/520,{view:true});
+  if(m=R.spotify.exec(u))return E("Spotify","https://open.spotify.com/embed/"+m[1]+"/"+m[2],360,360/(/^(track|episode)$/.test(m[1])?152:352));
+  if(m=R.ig.exec(u)){
+    const reel=m[1]==="reel";
+    return E("Instagram","https://www.instagram.com/"+m[1]+"/"+m[2]+"/embed/",reel?326:340,reel?9/16:340/600,{view:!reel,minw:326});
+  }
   if(m=R.fb.exec(u)){
     const href=m[0].replace(/\/\/(?:m|web)\./,"//www."),rl=/\/reel\//.test(href);
-    return E("Facebook","https://www.facebook.com/plugins/video.php?href="+encodeURIComponent(href)+"&show_text=false&autoplay=true",rl?240:300,rl?9/16:16/9);
+    return E("Facebook",fbSrc(href),rl?300:360,rl?9/16:16/9);
   }
-  if(m=R.snap.exec(u))return E("Snapchat","https://www.snapchat.com/"+m[1]+"/"+m[2]+"/embed",300,300/520,null,m[1]==="lens");
-  if(m=R.tg.exec(u))return E("Telegram","https://t.me/"+m[1]+"/"+m[2]+"?embed=1&mode=tme",300,300/320,null,true);
-  if(m=R.dm.exec(u))return E("Dailymotion","https://www.dailymotion.com/embed/video/"+m[1]+"?autoplay=1",280,16/9);
-  if(m=R.twv.exec(u))return E("Twitch","https://player.twitch.tv/?video=v"+m[1]+"&parent="+H+"&autoplay=true",280,16/9);
-  if(m=R.twc.exec(u))return E("Twitch","https://clips.twitch.tv/embed?clip="+m[1]+"&parent="+H+"&autoplay=true",280,16/9);
-  if(m=R.gd.exec(u))return E("Google Drive","https://drive.google.com/file/d/"+m[1]+"/preview",280,16/9,null,true);
+  if(m=R.fbs.exec(u)){
+    if(fbBad.has(m[0]))return null;
+    return E("Facebook",null,300,9/16,{lazy:true,from:m[0]});
+  }
+  if(m=R.snap.exec(u))return E("Snapchat","https://www.snapchat.com/"+m[1]+"/"+m[2]+"/embed",320,320/560,{view:m[1]==="lens"});
+  if(m=R.tg.exec(u))return E("Telegram","https://t.me/"+m[1]+"/"+m[2]+"?embed=1&mode=tme",340,340/380,{view:true});
+  if(m=R.dm.exec(u))return E("Dailymotion","https://www.dailymotion.com/embed/video/"+m[1]+"?autoplay=1",360,16/9);
+  if(m=R.twv.exec(u))return E("Twitch","https://player.twitch.tv/?video=v"+m[1]+"&parent="+H+"&autoplay=true",360,16/9);
+  if(m=R.twc.exec(u))return E("Twitch","https://clips.twitch.tv/embed?clip="+m[1]+"&parent="+H+"&autoplay=true",360,16/9);
+  if(m=R.gd.exec(u))return E("Google Drive","https://drive.google.com/file/d/"+m[1]+"/preview",300,9/16,
+    {view:true,fit:true,thumb:"https://drive.google.com/thumbnail?id="+m[1]+"&sz=w800"});
   if((m=R.sc.exec(u))&&!SC_BAD.test(m[1])&&(m[2].toLowerCase()==="sets"?!!m[3]:!SC_BAD.test(m[2])))
-    return E("SoundCloud","https://w.soundcloud.com/player/?url="+encodeURIComponent(u)+"&auto_play=true&visual=false&show_comments=false",300,300/166);
+    return E("SoundCloud","https://w.soundcloud.com/player/?url="+encodeURIComponent(u)+"&auto_play=true&visual=false&show_comments=false",340,340/166);
   const ext=((/\.([a-z0-9]{2,5})$/i.exec(u.split(/[?#]/)[0])||[])[1]||"").toLowerCase();
   if(VIDX.includes(ext))return {k:"video"};
   if(AUDX.includes(ext))return {k:"audio"};
@@ -967,14 +990,17 @@ function linkify(text){
   return frag;
 }
 
-function renderText(m){
+function renderText(m,el){
   const w=document.createDocumentFragment();
   const links=[...m.text.matchAll(URL_RE)].map(x=>fullUrl(cleanUrl(x[0])[0]));
   let info=null,url="";
   for(const u of links){const p=parseLink(u);if(p){info=p;url=u;break}}
   const only=!!info&&links.length===1&&m.text.replace(URL_RE,"").trim()==="";   // sirf link ho to link chhupao
   if(!only){const t=document.createElement("div");t.appendChild(linkify(m.text));w.appendChild(t)}
-  if(info)w.appendChild(info.k==="embed"?embedCard(m,info):mediaEl(m,info,url));
+  if(info){
+    if(el)el.classList.add("big");                  // card wale bubble ko chauda karo
+    w.appendChild(info.k==="embed"?embedCard(m,info):mediaEl(m,info,url));
+  }
   return w;
 }
 
@@ -995,17 +1021,41 @@ function mediaEl(m,x,url){
   w.appendChild(el);vcache.set(key,w);return w;
 }
 
+// card ka size: bada, par screen se bahar nahi
+function sizeCard(c,x){
+  let w=Math.min(x.w,innerWidth*0.84,innerHeight*0.7*x.ar);
+  if(x.minw)w=Math.min(Math.max(w,x.minw),innerWidth*0.94);
+  c.style.width=Math.round(w)+"px";
+  c.style.aspectRatio=x.ar;c.style.height="";
+}
+
 // embed card: pehle placeholder, tap par asli player
 function embedCard(m,x){
   const c=document.createElement("div");
-  c.className="lc";c.dataset.yt=m.id;
-  c.style.width="min("+x.w+"px,72vw)";c.style.aspectRatio=x.ar;
+  c.className="lc"+(x.fit?" gd":"");c.dataset.yt=m.id;
+  sizeCard(c,x);
   if(x.thumb)c.style.backgroundImage='url("'+x.thumb+'")';
   c.setAttribute("role","button");c.setAttribute("aria-label","Play "+x.p);c.tabIndex=0;
   c.innerHTML='<span class="lcp">'+ico(x.view?"eye":"play")+'</span><span class="lcn"></span>';
-  c.querySelector(".lcn").textContent=x.view?x.p+" · tap to view":x.p;
-  c.onclick=e=>{e.stopPropagation();ytPlay(m.id,x)};
-  c.onkeydown=e=>{if(e.key==="Enter")ytPlay(m.id,x)};
+  const nm=c.querySelector(".lcn");
+  nm.textContent=x.view?x.p+" · tap to view":x.p;
+  const go=async e=>{
+    if(e)e.stopPropagation();
+    if(x.lazy){
+      c.classList.add("ld");nm.textContent="Loading…";
+      try{
+        const real=await resolveFb(x.from),rl=/\/reel\//.test(real);
+        x.src=fbSrc(real);x.lazy=false;x.w=rl?300:360;x.ar=rl?9/16:16/9;sizeCard(c,x);
+      }catch(err){
+        fbBad.add(x.from);                         // asli link nahi mila: seedha clickable link
+        const d=document.createElement("div");d.appendChild(linkify(x.from));c.replaceWith(d);
+        toast("Could not open this Facebook link as video");return;
+      }
+      c.classList.remove("ld");nm.textContent=x.p;
+    }
+    ytPlay(m.id,x);
+  };
+  c.onclick=go;c.onkeydown=e=>{if(e.key==="Enter")go(e)};
   return c;
 }
 
@@ -1013,13 +1063,14 @@ const ytLayer=document.createElement("div");ytLayer.className="ytl";
 let yt=null,ytTimer=0;
 
 function ytPlay(id,x){
+  if(!x.src)return;
   ytStop();
   const wrap=document.createElement("div");wrap.className="ytw";
   const f=document.createElement("iframe");
   f.src=x.src;
   f.allow="autoplay; encrypted-media; picture-in-picture; fullscreen; clipboard-write";
   f.allowFullscreen=true;f.referrerPolicy="strict-origin-when-cross-origin";f.title=x.p;
-  f.setAttribute("sandbox","allow-scripts allow-same-origin allow-presentation");
+  f.setAttribute("sandbox","allow-scripts allow-same-origin allow-presentation");   // andar ke links kahin nahi kholenge
   wrap.appendChild(f);ytLayer.appendChild(wrap);
   yt={id,wrap};ytPos();
   ytTimer=setInterval(ytPos,300);          // jagah khiske to player saath chale
@@ -1036,4 +1087,15 @@ function ytPos(){
   s.top=(r.top-b.top+box.scrollTop)+"px";
   s.width=r.width+"px";s.height=r.height+"px";
 }
+
+// Instagram apni asli height batata hai: card usi ke hisaab se lamba ya chhota ho
+addEventListener("message",e=>{
+  if(!yt||e.origin!=="https://www.instagram.com")return;
+  let d=e.data;
+  try{if(typeof d==="string")d=JSON.parse(d)}catch(err){return}
+  const h=d&&d.type==="MEASURE"&&d.details&&d.details.height;
+  if(!h||h<150)return;
+  const ph=$("msgs").querySelector('[data-yt="'+yt.id+'"]');
+  if(ph){ph.style.aspectRatio="auto";ph.style.height=Math.round(Math.min(h,innerHeight*0.85))+"px"}
+});
 sync();
