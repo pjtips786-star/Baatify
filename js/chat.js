@@ -1057,7 +1057,7 @@ function embedCard(m,x){
   w.appendChild(c);
   if(x.rp){                                        // sirf Instagram video: card ke neeche Replay
     const b=document.createElement("button");b.type="button";b.className="lrp";
-    b.innerHTML='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg><span>Replay</span>';
+    b.innerHTML=ico("replay")+"<span>Replay</span>";
     b.onclick=e=>{e.stopPropagation();if(yt&&yt.id===m.id)ytReload();else go()};
     w.appendChild(b);
   }
