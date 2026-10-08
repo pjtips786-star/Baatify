@@ -237,3 +237,8 @@ button.av{cursor:pointer}
 .lm video{display:block;width:260px;max-width:100%;max-height:340px;border-radius:6px;background:#000}
 .lm audio{display:block;width:240px;max-width:100%}
 .lm img{display:block;width:auto;max-width:100%;max-height:340px;border-radius:6px;cursor:pointer}
+
+/* ----- Bade cards ----- */
+.m.big{max-width:94%}
+.lc.gd{background-color:#000;background-size:contain;background-position:center;background-repeat:no-repeat}
+.lc.ld .lcp{opacity:.4}
