@@ -225,3 +225,15 @@ button.av{cursor:pointer}
 .yt.sh{width:min(200px,52vw);aspect-ratio:9/16}
 .ytp{position:absolute;inset:0;display:grid;place-items:center}
 .ytp .i{width:54px;height:54px;padding:14px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;fill:currentColor;stroke:none}
+
+/* ----- Links: clickable + embeds ----- */
+.lk{color:#4fc3f7;text-decoration:underline;word-break:break-all}
+@media(prefers-color-scheme:light){.lk{color:#0b5fff}}
+.lc{position:relative;max-width:100%;border-radius:8px;background:linear-gradient(135deg,#2a2640,#12101f) center/cover no-repeat;cursor:pointer;margin:2px 0;overflow:hidden}
+.lcp{position:absolute;inset:0;display:grid;place-items:center}
+.lcp .i{width:54px;height:54px;padding:14px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;fill:currentColor;stroke:none}
+.lcn{position:absolute;left:8px;bottom:6px;font-size:12px;color:#fff;background:rgba(0,0,0,.55);padding:2px 8px;border-radius:10px}
+.lm{max-width:100%}
+.lm video{display:block;width:260px;max-width:100%;max-height:340px;border-radius:6px;background:#000}
+.lm audio{display:block;width:240px;max-width:100%}
+.lm img{display:block;width:auto;max-width:100%;max-height:340px;border-radius:6px;cursor:pointer}
