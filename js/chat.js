@@ -918,7 +918,7 @@ const SC_BAD=/^(?:likes|followers|following|reposts|tracks|albums|sets|popular-t
 function parseLink(u){
   let m;
   const H=location.hostname,dark=matchMedia("(prefers-color-scheme:dark)").matches;
-  const E=(p,src,w,ar,thumb)=>({k:"embed",p,src,w,ar,thumb});
+  const E=(p,src,w,ar,thumb,view)=>({k:"embed",p,src,w,ar,thumb,view:!!view});   // view=true: photo/post (aankh ka icon)
   if(m=R.yt.exec(u)){
     const sh=/youtube\.com\/shorts\//i.test(u);
     return E("YouTube","https://www.youtube-nocookie.com/embed/"+m[1]+"?autoplay=1&playsinline=1&rel=0&modestbranding=1&origin="+encodeURIComponent(location.origin),
@@ -926,20 +926,19 @@ function parseLink(u){
   }
   if(m=R.vimeo.exec(u))return E("Vimeo","https://player.vimeo.com/video/"+m[1]+(m[2]?"?h="+m[2]+"&":"?")+"autoplay=1",280,16/9);
   if(m=R.tiktok.exec(u))return E("TikTok","https://www.tiktok.com/embed/v2/"+m[1],260,9/16);
-  if(m=R.x.exec(u))return E("X","https://platform.twitter.com/embed/Tweet.html?id="+m[1]+"&dnt=true&theme="+(dark?"dark":"light"),300,300/420);
+  if(m=R.x.exec(u))return E("X","https://platform.twitter.com/embed/Tweet.html?id="+m[1]+"&dnt=true&theme="+(dark?"dark":"light"),300,300/420,null,true);
   if(m=R.spotify.exec(u))return E("Spotify","https://open.spotify.com/embed/"+m[1]+"/"+m[2],300,300/(/^(track|episode)$/.test(m[1])?152:352));
-  if(m=R.ig.exec(u))return E("Instagram","https://www.instagram.com/"+m[1]+"/"+m[2]+"/embed/",300,300/(m[1]==="reel"?540:470));
+  if(m=R.ig.exec(u))return E("Instagram","https://www.instagram.com/"+m[1]+"/"+m[2]+"/embed/",300,300/(m[1]==="reel"?540:470),null,m[1]!=="reel");
   if(m=R.fb.exec(u)){
     const href=m[0].replace(/\/\/(?:m|web)\./,"//www."),rl=/\/reel\//.test(href);
     return E("Facebook","https://www.facebook.com/plugins/video.php?href="+encodeURIComponent(href)+"&show_text=false&autoplay=true",rl?240:300,rl?9/16:16/9);
   }
-  if(m=R.pin.exec(u))return E("Pinterest","https://assets.pinterest.com/ext/embed.html?id="+m[1],260,260/430);
-  if(m=R.snap.exec(u))return E("Snapchat","https://www.snapchat.com/"+m[1]+"/"+m[2]+"/embed",300,300/520);
-  if(m=R.tg.exec(u))return E("Telegram","https://t.me/"+m[1]+"/"+m[2]+"?embed=1&mode=tme",300,300/320);
+  if(m=R.snap.exec(u))return E("Snapchat","https://www.snapchat.com/"+m[1]+"/"+m[2]+"/embed",300,300/520,null,m[1]==="lens");
+  if(m=R.tg.exec(u))return E("Telegram","https://t.me/"+m[1]+"/"+m[2]+"?embed=1&mode=tme",300,300/320,null,true);
   if(m=R.dm.exec(u))return E("Dailymotion","https://www.dailymotion.com/embed/video/"+m[1]+"?autoplay=1",280,16/9);
   if(m=R.twv.exec(u))return E("Twitch","https://player.twitch.tv/?video=v"+m[1]+"&parent="+H+"&autoplay=true",280,16/9);
   if(m=R.twc.exec(u))return E("Twitch","https://clips.twitch.tv/embed?clip="+m[1]+"&parent="+H+"&autoplay=true",280,16/9);
-  if(m=R.gd.exec(u))return E("Google Drive","https://drive.google.com/file/d/"+m[1]+"/preview",280,16/9);
+  if(m=R.gd.exec(u))return E("Google Drive","https://drive.google.com/file/d/"+m[1]+"/preview",280,16/9,null,true);
   if((m=R.sc.exec(u))&&!SC_BAD.test(m[1])&&(m[2].toLowerCase()==="sets"?!!m[3]:!SC_BAD.test(m[2])))
     return E("SoundCloud","https://w.soundcloud.com/player/?url="+encodeURIComponent(u)+"&auto_play=true&visual=false&show_comments=false",300,300/166);
   const ext=((/\.([a-z0-9]{2,5})$/i.exec(u.split(/[?#]/)[0])||[])[1]||"").toLowerCase();
@@ -1003,8 +1002,8 @@ function embedCard(m,x){
   c.style.width="min("+x.w+"px,72vw)";c.style.aspectRatio=x.ar;
   if(x.thumb)c.style.backgroundImage='url("'+x.thumb+'")';
   c.setAttribute("role","button");c.setAttribute("aria-label","Play "+x.p);c.tabIndex=0;
-  c.innerHTML='<span class="lcp">'+ico("play")+'</span><span class="lcn"></span>';
-  c.querySelector(".lcn").textContent=x.p;
+  c.innerHTML='<span class="lcp">'+ico(x.view?"eye":"play")+'</span><span class="lcn"></span>';
+  c.querySelector(".lcn").textContent=x.view?x.p+" · tap to view":x.p;
   c.onclick=e=>{e.stopPropagation();ytPlay(m.id,x)};
   c.onkeydown=e=>{if(e.key==="Enter")ytPlay(m.id,x)};
   return c;
@@ -1020,7 +1019,7 @@ function ytPlay(id,x){
   f.src=x.src;
   f.allow="autoplay; encrypted-media; picture-in-picture; fullscreen; clipboard-write";
   f.allowFullscreen=true;f.referrerPolicy="strict-origin-when-cross-origin";f.title=x.p;
-  f.setAttribute("sandbox","allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-presentation allow-forms");
+  f.setAttribute("sandbox","allow-scripts allow-same-origin allow-presentation");
   wrap.appendChild(f);ytLayer.appendChild(wrap);
   yt={id,wrap};ytPos();
   ytTimer=setInterval(ytPos,300);          // jagah khiske to player saath chale
