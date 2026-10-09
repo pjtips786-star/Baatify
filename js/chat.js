@@ -343,8 +343,9 @@ function renderMsgs(){
         r.append(rb,rs);el.appendChild(r);
       }
       if(m.audio){el.appendChild(voiceEl(m))}
-      else if(m.video){el.appendChild(videoEl(m))}
+      else if(m.video){el.classList.add("big");el.appendChild(videoEl(m))}
       else if(m.img){
+        el.classList.add("big");
         const im=document.createElement("img");
         im.src=m.img;im.alt="Photo";im.loading="lazy";
         im.onload=()=>{if(stickNow)box.scrollTop=box.scrollHeight};
@@ -620,7 +621,7 @@ $("file").onchange=async()=>{
   if(!f||!cur||noCloud())return;
   if(f.type.startsWith("video/")){sendVideo(f);return}
   const box=$("msgs"),tmp=document.createElement("div"),pv=URL.createObjectURL(f);
-  tmp.className="m me new upl";
+  tmp.className="m me new upl big";
   tmp.innerHTML='<div class="up"><img src="'+pv+'" alt=""><div class="ring"><svg viewBox="0 0 44 44"><circle class="bg" cx="22" cy="22" r="19"/><circle class="fg" cx="22" cy="22" r="19"/></svg><b>0%</b></div></div>';
   box.appendChild(tmp);box.scrollTo({top:box.scrollHeight,behavior:"smooth"});
   const fg=tmp.querySelector(".fg"),pc=tmp.querySelector("b");
@@ -869,7 +870,7 @@ async function sendVideo(f){
   if(!canComp&&mb>VID_MAX_MB)return toast("This browser cannot compress. Video must be under "+VID_MAX_MB+" MB");
   const chatId=cur.id,box=$("msgs"),tmp=document.createElement("div"),ctl={};
   let stopped=false;
-  tmp.className="m me new upl";
+  tmp.className="m me new upl big";
   tmp.innerHTML='<div class="up"><img alt="" style="visibility:hidden;min-height:140px"><div class="ring"><svg viewBox="0 0 44 44"><circle class="bg" cx="22" cy="22" r="19"/><circle class="fg" cx="22" cy="22" r="19"/></svg><b>0%</b></div></div><div class="vst">Preparing…</div><button class="vcx" type="button" aria-label="Cancel">✕</button>';
   box.appendChild(tmp);box.scrollTop=box.scrollHeight;
   const fg=tmp.querySelector(".fg"),pc=tmp.querySelector("b"),st=tmp.querySelector(".vst"),im=tmp.querySelector("img");
