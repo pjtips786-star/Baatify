@@ -63,3 +63,15 @@ main{max-width:560px;margin:0 auto;padding:12px}
 #vdl{right:12px}
 #toast{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);background:#323b41;color:#fff;padding:10px 16px;border-radius:20px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:30;max-width:90%;text-align:center}
 #toast.on{opacity:1}
+/* ----- Icons ----- */
+.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none;display:block}
+.top a{display:grid;place-items:center;padding:6px}
+.top .sh{color:var(--g)}
+.top b{font-size:17px}
+.tb,.sg,.btn,.lnk{display:flex;align-items:center;justify-content:center;gap:6px}
+.lnk{justify-content:flex-start}
+.srch{position:relative}
+.srch .i{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--mute);width:18px;height:18px}
+.srch input{padding-left:38px}
+.pl .i{width:34px;height:34px;fill:#fff;stroke:none}
+.vtn{display:flex;align-items:center;gap:6px}
