@@ -4,6 +4,7 @@ import {doc,getDoc,setDoc,updateDoc,collection,query,where,orderBy,limit,startAf
 const {auth,db}=await import("./firebase.js"+(window.V||""));
 
 const $=id=>document.getElementById(id);
+document.addEventListener("gesturestart",e=>e.preventDefault());
 const show=(id,on)=>$(id).classList.toggle("hide",!on);
 const ico=n=>'<svg class="i" aria-hidden="true"><use href="#i-'+n+'"/></svg>';
 const ms=t=>t&&t.toMillis?t.toMillis():(typeof t==="number"?t:0);
@@ -303,24 +304,91 @@ function renderGal(){
   });
 }
 
-/* ---------- Viewer + download ---------- */
-let vcur=null;
+/* ---------- Viewer (swipe) + download ---------- */
+let vlist=[],vk="",vi=0,vPush=false;
+let vsx=0,vsy=0,vdx=0,vtrack=false,vlock=null;
+
 function openViewer(k,m){
-  const b=$("vbody");b.textContent="";let el;
-  if(k==="img"){el=new Image();el.alt="";el.src=m.img}
+  vk=k;vlist=gal[k]||[];
+  vi=Math.max(0,vlist.findIndex(x=>x.id===m.id));
+  show("viewer",1);showItem(0);
+  history.pushState({adm:"v"},"");vPush=true;       // phone ka back pehle viewer band kare
+}
+
+function showItem(dir){
+  const b=$("vbody"),m=vlist[vi];if(!m)return;
+  const old=b.querySelector("video");if(old)old.pause();
+  b.textContent="";
+  let el;
+  if(vk==="img"){el=new Image();el.alt="";el.draggable=false;el.src=m.img}
   else{el=document.createElement("video");el.controls=true;el.playsInline=true;el.autoplay=true;el.src=m.video}
-  b.appendChild(el);vcur={url:k==="img"?m.img:m.video};show("viewer",1);
+  el.className="vit";
+  if(dir){                                           // halka sa slide-in
+    el.style.transform="translateX("+(dir*60)+"px)";el.style.opacity="0";
+    requestAnimationFrame(()=>{el.style.transition="transform .2s,opacity .2s";el.style.transform="";el.style.opacity=""});
+  }
+  b.appendChild(el);
+  $("vct").textContent=(vi+1)+" / "+vlist.length;
+  $("vpv").classList.toggle("hide",vi===0);
+  $("vnx").classList.toggle("hide",vi>=vlist.length-1);
+  if(vk==="img")[vi-1,vi+1].forEach(j=>{if(vlist[j]){const p=new Image();p.src=vlist[j].img}});   // aas-paas ki photos pehle se
 }
-function closeViewer(){
+
+function go(d){
+  const n=vi+d;
+  if(n<0||n>=vlist.length)return false;
+  vi=n;showItem(d);return true;
+}
+
+function closeViewer(fromPop){
   const v=$("vbody").querySelector("video");if(v)v.pause();
-  $("vbody").textContent="";vcur=null;show("viewer",0);
+  $("vbody").textContent="";vlist=[];show("viewer",0);
+  if(vPush&&!fromPop){vPush=false;history.back()}
+  vPush=false;
 }
-$("vx").onclick=closeViewer;
-$("viewer").addEventListener("click",e=>{if(e.target===$("viewer"))closeViewer()});
+addEventListener("popstate",()=>{if(!$("viewer").classList.contains("hide")){vPush=false;closeViewer(true)}});
+
+$("vx").onclick=()=>closeViewer(false);
+$("vpv").onclick=()=>go(-1);
+$("vnx").onclick=()=>go(1);
+$("viewer").addEventListener("click",e=>{if(e.target===$("viewer")||e.target===$("vbody"))closeViewer(false)});
+addEventListener("keydown",e=>{
+  if($("viewer").classList.contains("hide"))return;
+  if(e.key==="ArrowRight")go(1);
+  else if(e.key==="ArrowLeft")go(-1);
+  else if(e.key==="Escape")closeViewer(false);
+});
+
+// swipe
+const V=$("viewer");
+V.addEventListener("touchstart",e=>{
+  if(e.touches.length!==1){vtrack=false;return}
+  const t=e.touches[0];vsx=t.clientX;vsy=t.clientY;vdx=0;vtrack=true;vlock=null;
+  const v=e.target.closest&&e.target.closest("video");
+  if(v){const r=v.getBoundingClientRect();if(t.clientY>r.bottom-80)vtrack=false}    // video ke controls par swipe nahi
+},{passive:true});
+V.addEventListener("touchmove",e=>{
+  if(!vtrack)return;
+  const t=e.touches[0],dx=t.clientX-vsx,dy=t.clientY-vsy;
+  if(vlock===null&&(Math.abs(dx)>10||Math.abs(dy)>10))vlock=Math.abs(dx)>Math.abs(dy)?"x":"y";
+  if(vlock==="x"){
+    vdx=dx;const el=$("vbody").firstChild;
+    if(el){el.style.transition="none";el.style.transform="translateX("+dx+"px)"}
+  }
+},{passive:true});
+V.addEventListener("touchend",()=>{
+  if(!vtrack)return;vtrack=false;
+  if(vlock==="x"&&Math.abs(vdx)>60&&go(vdx<0?1:-1)){vdx=0;return}
+  const el=$("vbody").firstChild;
+  if(el){el.style.transition="transform .2s";el.style.transform=""}                  // wapas apni jagah
+  vdx=0;
+});
+
 $("vdl").onclick=async()=>{
-  if(!vcur)return;
+  const m=vlist[vi];if(!m)return;
+  const url=vk==="img"?m.img:m.video;
   try{
-    const r=await fetch(vcur.url),b=await r.blob(),a=document.createElement("a");
+    const r=await fetch(url),b=await r.blob(),a=document.createElement("a");
     const ext=(b.type.split("/")[1]||"bin").split(";")[0];
     a.href=URL.createObjectURL(b);a.download="baatify-"+Date.now()+"."+ext;
     document.body.appendChild(a);a.click();a.remove();
