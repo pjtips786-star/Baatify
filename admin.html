@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Admin - Baatify</title>
+<script>
+window.V="?v="+Date.now();
+document.write('<link rel="stylesheet" href="css/admin.css'+window.V+'">');
+</script>
+</head>
+<body>
+<p id="load" class="note">Loading…</p>
+
+<div id="gate" class="hide">
+  <div class="card gc">
+    <h2>Admin panel</h2>
+    <p class="mut">Password dobara daalo</p>
+    <input id="gp" type="password" placeholder="Password" autocomplete="current-password" aria-label="Password">
+    <button class="btn" id="gb" type="button">Open</button>
+    <p id="ge" class="err" role="alert"></p>
+    <a class="lnk" href="chat.html">Back to chats</a>
+  </div>
+</div>
+
+<div id="app" class="hide">
+  <header class="top">
+    <a href="chat.html" aria-label="Back to chats">←</a>
+    <b>Admin</b>
+    <select id="chatSel" aria-label="Choose chat"></select>
+  </header>
+
+  <nav class="tabs">
+    <button class="tb on" data-t="ov" type="button">Overview</button>
+    <button class="tb" data-t="ct" type="button">Chat tools</button>
+    <button class="tb" data-t="gl" type="button">Gallery</button>
+  </nav>
+
+  <main>
+    <!-- Overview -->
+    <section id="t-ov">
+      <div class="card"><h3>Is chat mein</h3><div id="ovs" class="stats"></div></div>
+      <div class="card"><h3>Samne wala</h3><div id="ovp"></div></div>
+      <div class="card">
+        <h3>Quota</h3>
+        <p class="mut">Firestore free plan: roz 50,000 reads aur 20,000 writes. Reset lagbhag dopahar 12:30 baje (India).</p>
+        <a class="lnk" target="_blank" rel="noopener" href="https://console.firebase.google.com/project/chat-262f9/firestore">Firebase Usage kholo</a>
+      </div>
+      <button class="btn" id="ovr" type="button">Refresh</button>
+    </section>
+
+    <!-- Chat tools -->
+    <section id="t-ct" class="hide">
+      <div class="card">
+        <h3>Messages load karo</h3>
+        <p class="mut">Search ke liye messages padhne padte hain (har message 1 read).</p>
+        <div class="row">
+          <select id="lm"><option value="500">Last 500</option><option value="2000">Last 2000</option><option value="all">Sab</option></select>
+          <button class="btn sm" id="lb" type="button">Load</button>
+        </div>
+        <p id="ls" class="mut"></p>
+        <input id="sq" placeholder="Loaded messages mein search" aria-label="Search">
+        <div id="sr"></div>
+      </div>
+
+      <div class="card">
+        <h3>Backup</h3>
+        <p class="mut">JSON baad mein wapas Firestore mein import ho sakta hai. TXT sirf padhne ke liye. Photo, video aur voice ke sirf links save hote hain.</p>
+        <div class="row">
+          <button class="btn" id="bj" type="button">Backup (JSON)</button>
+          <button class="btn ghost" id="bt" type="button">Readable (TXT)</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Restore (import)</h3>
+        <p class="mut">Backup JSON chuno. Messages usi chat mein wapas judenge. Jo messages pehle se hain unka duplicate nahi banega, wo backup wale version par aa jayenge.</p>
+        <input type="file" id="rf" accept="application/json,.json">
+        <button class="btn" id="rb" type="button">Import</button>
+        <p id="rs" class="mut"></p>
+      </div>
+
+      <div class="card danger">
+        <h3>Chat saaf karo (dono ke liye)</h3>
+        <p class="mut">Saare messages hamesha ke liye delete honge. Pehle Backup le lo. Neeche DELETE likho.</p>
+        <input id="cc" placeholder="DELETE" autocomplete="off" aria-label="Type DELETE">
+        <button class="btn red" id="cb" type="button" disabled>Clear chat</button>
+        <p id="cs" class="mut"></p>
+      </div>
+    </section>
+
+    <!-- Gallery -->
+    <section id="t-gl" class="hide">
+      <div class="seg">
+        <button class="sg on" data-g="img" type="button">Photos</button>
+        <button class="sg" data-g="video" type="button">Videos</button>
+        <button class="sg" data-g="audio" type="button">Voice</button>
+      </div>
+      <p id="gs" class="mut"></p>
+      <div id="gg" class="gal"></div>
+    </section>
+  </main>
+</div>
+
+<div id="viewer" class="hide">
+  <button class="vtn" id="vx" type="button" aria-label="Close">✕</button>
+  <button class="vtn" id="vdl" type="button">Download</button>
+  <div id="vbody"></div>
+</div>
+
+<div id="toast" role="status"></div>
+<script>import("./js/admin.js"+window.V)</script>
+</body>
+</html>
