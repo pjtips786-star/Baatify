@@ -256,3 +256,17 @@ button.av{cursor:pointer}
 .vid video{width:100%;max-height:min(75vh,580px);object-fit:contain;background:#000}
 .lm video{max-height:min(75vh,580px);object-fit:contain}
 .m .up img{width:100%;max-height:none}
+
+/* ----- Paste preview + stickers ----- */
+.pvw{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.7);display:grid;place-items:center;padding:20px}
+.pvb{background:var(--panel);border-radius:16px;padding:14px;width:100%;max-width:360px;display:grid;gap:10px;justify-items:center}
+.pvb img{max-width:100%;max-height:50vh;border-radius:8px;background:rgba(127,127,127,.2);display:block}
+.pvt{color:var(--mute);font-size:13px}
+.pvr{display:flex;gap:10px;width:100%}
+.pvr button{flex:1;padding:12px;border:0;border-radius:24px;cursor:pointer}
+.pvn{background:rgba(127,127,127,.25);color:var(--text)}
+.pvy{background:var(--g);color:#fff}
+.m.stk{background:none!important;padding:0;box-shadow:none}
+.m.stk::before{display:none}
+.m.stk img{width:150px;max-height:150px;object-fit:contain;background:none}
+.m.stk .meta{align-self:flex-end;background:rgba(0,0,0,.4);color:#fff;border-radius:10px;padding:1px 8px;margin-top:2px;display:inline-flex}
