@@ -75,3 +75,14 @@ main{max-width:560px;margin:0 auto;padding:12px}
 .srch input{padding-left:38px}
 .pl .i{width:34px;height:34px;fill:#fff;stroke:none}
 .vtn{display:flex;align-items:center;gap:6px}
+/* ----- Zoom lock ----- */
+html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;overscroll-behavior:none}
+
+/* ----- Viewer: swipe ----- */
+#vbody{width:100%;height:100%;display:grid;place-items:center;overflow:hidden}
+.vit{max-width:96vw;max-height:84vh;display:block;user-select:none;-webkit-user-select:none;-webkit-user-drag:none}
+.vct{position:absolute;top:calc(20px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);color:#fff;font-size:14px;background:rgba(0,0,0,.4);padding:4px 12px;border-radius:14px;z-index:2}
+.vnav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.15);color:#fff;display:grid;place-items:center;cursor:pointer;z-index:2}
+.vnav.l{left:8px}
+.vnav.r{right:8px}
+.vnav.hide{display:none}
