@@ -1,10 +1,11 @@
-import {onAuthStateChanged,EmailAuthProvider,reauthenticateWithCredential} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import {onAuthStateChanged} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import {doc,getDoc,setDoc,updateDoc,collection,query,where,orderBy,limit,startAfter,getDocs,getCountFromServer,writeBatch,Timestamp,deleteField} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const {auth,db}=await import("./firebase.js"+(window.V||""));
 
 const $=id=>document.getElementById(id);
 const show=(id,on)=>$(id).classList.toggle("hide",!on);
+const ico=n=>'<svg class="i" aria-hidden="true"><use href="#i-'+n+'"/></svg>';
 const ms=t=>t&&t.toMillis?t.toMillis():(typeof t==="number"?t:0);
 const pad=n=>(n<10?"0":"")+n;
 const fmtDur=s=>{s=Math.floor(s||0);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
@@ -27,34 +28,23 @@ async function busy(btn,fn){
   btn.disabled=false;
 }
 
-/* ---------- Login gate: sirf admin, aur password dobara ---------- */
+/* ---------- Access: only admin accounts ---------- */
 onAuthStateChanged(auth,async u=>{
   if(!u){location.replace("login.html");return}
   try{
     const a=await getDoc(doc(db,"admins",u.uid));
     if(!a.exists()){location.replace("chat.html");return}
   }catch(e){location.replace("chat.html");return}
-  me=u;show("load",0);show("gate",1);
+  me=u;show("load",0);show("app",1);
+  await init();
 });
-
-async function openPanel(){
-  const pw=$("gp").value;if(!pw)return;
-  $("gb").disabled=true;$("ge").textContent="";
-  try{
-    await reauthenticateWithCredential(me,EmailAuthProvider.credential(me.email,pw));
-    $("gp").value="";show("gate",0);show("app",1);await init();
-  }catch(e){$("ge").textContent="Wrong password"}
-  $("gb").disabled=false;
-}
-$("gb").onclick=openPanel;
-$("gp").addEventListener("keydown",e=>{if(e.key==="Enter")openPanel()});
 
 async function init(){
   const s=await getDocs(query(collection(db,"chats"),where("members","array-contains",me.uid)));
   chats=s.docs.map(d=>({id:d.id,...d.data()}));
   const sel=$("chatSel");sel.textContent="";
-  chats.forEach(c=>{const o=document.createElement("option");o.value=c.id;o.textContent=pname(c);sel.appendChild(o)});
-  if(!chats.length){toast("Koi chat nahi mili");return}
+  chats.forEach(c=>{const o=document.createElement("option");o.value=c.id;o.textContent="Chat with "+pname(c);sel.appendChild(o)});
+  if(!chats.length){toast("No chats found");return}
   cur=chats[0].id;sel.value=cur;
   resetCaches();refresh();
 }
@@ -95,7 +85,7 @@ async function overview(){
     const u=(await getDoc(doc(db,"users",other(curChat())))).data()||{};
     const ls=ms(u.lastSeen),on=u.online&&Date.now()-ls<240000;
     pb.textContent="";
-    [["Naam",u.name||"-"],["Username",u.username?"@"+u.username:"-"],["Status",on?"online":(ls?"last seen "+fdt(ls):"-")]].forEach(x=>{
+    [["Name",u.name||"-"],["Username",u.username?"@"+u.username:"-"],["Status",on?"Online":(ls?"Last seen "+fdt(ls):"-")]].forEach(x=>{
       const row=document.createElement("div");row.className="kv";
       const a=document.createElement("span");a.textContent=x[0];
       const b=document.createElement("b");b.textContent=x[1];
@@ -105,7 +95,7 @@ async function overview(){
 }
 $("ovr").onclick=overview;
 
-/* ---------- Messages load + search ---------- */
+/* ---------- Load messages + search ---------- */
 async function loadMsgs(max){
   const out=[];let last=null;
   for(;;){
@@ -114,7 +104,7 @@ async function loadMsgs(max){
     const q=last?query(msgCol(),orderBy("t","desc"),startAfter(last),limit(need)):query(msgCol(),orderBy("t","desc"),limit(need));
     const s=await getDocs(q);
     s.docs.forEach(d=>out.push({id:d.id,...d.data()}));
-    $("ls").textContent=out.length+" messages padhe…";
+    $("ls").textContent=out.length+" messages read…";
     if(s.docs.length<need)break;
     last=s.docs[s.docs.length-1];
   }
@@ -140,9 +130,9 @@ function mark(text,q){
 function doSearch(){
   const q=$("sq").value.trim().toLowerCase(),box=$("sr");box.textContent="";
   if(!q)return;
-  if(cache.id!==cur||!cache.msgs.length){box.textContent="Pehle messages load karo";return}
+  if(cache.id!==cur||!cache.msgs.length){box.textContent="Load messages first";return}
   const hits=cache.msgs.filter(m=>m.text&&m.text.toLowerCase().includes(q)).slice(-100).reverse();
-  if(!hits.length){box.textContent="Kuch nahi mila";return}
+  if(!hits.length){box.textContent="No results";return}
   hits.forEach(m=>{
     const d=document.createElement("div");d.className="hit";
     const s=document.createElement("small");s.textContent=who(m)+" · "+fdt(ms(m.t));
@@ -156,7 +146,7 @@ $("sq").oninput=doSearch;
 async function allMsgs(){
   if(cache.id===cur&&cache.complete)return cache.msgs;
   const n=(await getCountFromServer(msgCol())).data().count;
-  if(!confirm("Is chat mein "+n+" messages hain. Padhne mein lagbhag "+n+" reads lagenge. Aage badhein?"))return null;
+  if(!confirm("This chat has "+n+" messages. Reading them will use about "+n+" reads. Continue?"))return null;
   const arr=await loadMsgs("all");
   cache={id:cur,msgs:arr,complete:true};
   $("ls").textContent=arr.length+" messages loaded";
@@ -192,7 +182,7 @@ $("bj").onclick=()=>busy($("bj"),async()=>{
   const data={app:"baatify",version:1,exportedAt:Date.now(),
     chat:{id:c.id,members:c.members,names:c.names||{}},messages:arr.map(pack)};
   save("baatify-backup-"+safe(pname(c))+"-"+dateTag()+".json",JSON.stringify(data),"application/json");
-  toast("Backup taiyar ("+arr.length+" messages)");
+  toast("Backup ready ("+arr.length+" messages)");
 });
 
 $("bt").onclick=()=>busy($("bt"),async()=>{
@@ -202,22 +192,22 @@ $("bt").onclick=()=>busy($("bt"),async()=>{
     return "["+fdt(ms(m.t))+"] "+who(m)+": "+body;
   });
   save("baatify-chat-"+safe(pname(curChat()))+"-"+dateTag()+".txt",lines.join("\n"),"text/plain");
-  toast("TXT taiyar ("+arr.length+" messages)");
+  toast("TXT ready ("+arr.length+" messages)");
 });
 
 /* ---------- Restore (import) ---------- */
 $("rb").onclick=()=>busy($("rb"),async()=>{
-  const f=$("rf").files[0];if(!f)return toast("Pehle backup file chuno");
-  let d;try{d=JSON.parse(await f.text())}catch(e){return toast("File sahi nahi hai")}
-  if(d.app!=="baatify"||!d.chat||!Array.isArray(d.messages))return toast("Ye Baatify ka backup nahi hai");
+  const f=$("rf").files[0];if(!f)return toast("Choose a backup file first");
+  let d;try{d=JSON.parse(await f.text())}catch(e){return toast("This file is not valid")}
+  if(d.app!=="baatify"||!d.chat||!Array.isArray(d.messages))return toast("This is not a Baatify backup");
   const ch=d.chat;
-  if(!ch.id||!Array.isArray(ch.members)||ch.members.length!==2||!ch.members.includes(me.uid))return toast("Is backup ki chat mein tum member nahi ho");
-  if(ch.id!==[...ch.members].sort().join("_"))return toast("Backup ki chat id galat hai");
+  if(!ch.id||!Array.isArray(ch.members)||ch.members.length!==2||!ch.members.includes(me.uid))return toast("You are not a member of the chat in this backup");
+  if(ch.id!==[...ch.members].sort().join("_"))return toast("The chat id in this backup is invalid");
   const msgs=d.messages.filter(m=>m&&typeof m.id==="string"&&m.id&&ch.members.includes(m.sender));
-  if(!msgs.length)return toast("Backup mein koi message nahi mila");
-  if(!confirm(msgs.length+" messages is chat mein wapas jodein?"))return;
+  if(!msgs.length)return toast("No messages found in this backup");
+  if(!confirm("Import "+msgs.length+" messages back into this chat?"))return;
 
-  $("rs").textContent="Chat taiyar ho rahi hai…";
+  $("rs").textContent="Preparing chat…";
   let old=null;try{old=(await getDoc(doc(db,"chats",ch.id))).data()}catch(e){old=null}
   const last=msgs.reduce((x,y)=>(y.t||0)>(x.t||0)?y:x,msgs[0]);
   const gone=x=>({[x]:deleteField()});
@@ -235,20 +225,20 @@ $("rb").onclick=()=>busy($("rb"),async()=>{
     const b=writeBatch(db);
     msgs.slice(i,i+400).forEach(m=>b.set(doc(db,"chats",ch.id,"messages",m.id),unpack(m)));
     await b.commit();n+=Math.min(400,msgs.length-i);
-    $("rs").textContent=n+" / "+msgs.length+" messages import hue…";
+    $("rs").textContent=n+" / "+msgs.length+" messages imported…";
   }
-  $("rs").textContent="Ho gaya: "+n+" messages import hue";
-  toast("Import poora");
+  $("rs").textContent="Done: "+n+" messages imported";
+  toast("Import complete");
   const keep=ch.id;await init();
   if(chats.some(c=>c.id===keep)){cur=keep;$("chatSel").value=keep}
   resetCaches();refresh();
 });
 
-/* ---------- Clear chat (dono ke liye) ---------- */
+/* ---------- Clear chat (for both) ---------- */
 $("cc").oninput=()=>{$("cb").disabled=$("cc").value.trim()!=="DELETE"};
 $("cb").onclick=async()=>{
   if($("cc").value.trim()!=="DELETE")return;
-  if(!confirm("Pakka? Saare messages hamesha ke liye delete honge (sirf backup se wapas aa sakte hain)."))return;
+  if(!confirm("Are you sure? All messages will be deleted permanently (only a backup can bring them back)."))return;
   $("cb").disabled=true;
   try{
     let n=0;
@@ -256,11 +246,11 @@ $("cb").onclick=async()=>{
       const s=await getDocs(query(msgCol(),limit(400)));
       if(s.empty)break;
       const b=writeBatch(db);s.docs.forEach(d=>b.delete(d.ref));await b.commit();
-      n+=s.size;$("cs").textContent=n+" messages delete hue…";
+      n+=s.size;$("cs").textContent=n+" messages deleted…";
     }
     await updateDoc(doc(db,"chats",cur),{lastMsg:deleteField(),lastAt:deleteField(),lastFrom:deleteField(),lastDel:deleteField()});
     resetCaches();$("cc").value="";
-    $("cs").textContent="Chat saaf ho gayi ("+n+" messages)";toast("Chat saaf");
+    $("cs").textContent="Chat cleared ("+n+" messages)";toast("Chat cleared");
   }catch(e){toast("Error: "+((e&&(e.code||e.message))||e))}
   $("cb").disabled=$("cc").value.trim()!=="DELETE";
 };
@@ -296,7 +286,7 @@ async function gallery(){
 function renderGal(){
   const k=seg,arr=gal[k]||[],box=$("gg");
   box.textContent="";box.className=k==="audio"?"list":"gal";
-  $("gs").textContent=arr.length?arr.length+" "+(k==="img"?"photos":k==="video"?"videos":"voice messages"):"Kuch nahi mila";
+  $("gs").textContent=arr.length?arr.length+" "+(k==="img"?"photos":k==="video"?"videos":"voice messages"):"Nothing here yet";
   arr.forEach(m=>{
     if(k==="audio"){
       const r=document.createElement("div");r.className="vr";
@@ -307,7 +297,7 @@ function renderGal(){
     }
     const b=document.createElement("button");b.type="button";b.className="gi";
     const im=new Image();im.loading="lazy";im.alt="";im.src=thumb(m[k],k);b.appendChild(im);
-    if(k==="video"){const p=document.createElement("span");p.className="pl";p.textContent="▶";b.appendChild(p)}
+    if(k==="video"){const p=document.createElement("span");p.className="pl";p.innerHTML=ico("play");b.appendChild(p)}
     b.onclick=()=>openViewer(k,m);
     box.appendChild(b);
   });
@@ -334,6 +324,6 @@ $("vdl").onclick=async()=>{
     const ext=(b.type.split("/")[1]||"bin").split(";")[0];
     a.href=URL.createObjectURL(b);a.download="baatify-"+Date.now()+"."+ext;
     document.body.appendChild(a);a.click();a.remove();
-    setTimeout(()=>URL.revokeObjectURL(a.href),8000);toast("Download shuru");
+    setTimeout(()=>URL.revokeObjectURL(a.href),8000);toast("Download started");
   }catch(e){toast("Download failed")}
 };

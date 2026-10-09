@@ -109,7 +109,8 @@ async function boot(u){
   try{localStorage.setItem("bt_me",JSON.stringify({name:me.name,photo:me.photo||""}))}catch(e){}
   $("mn").textContent=me.name;setAv($("me"),me.name,me.photo);
   initCalls({uid:me.uid,name:me.name,photo:me.photo||""});
-  if(me.uid===OWNER_UID)show("m4",1);
+  
+  if(me.uid===OWNER_UID)show("adm",1);
   pres(true);clearInterval(hb);hb=setInterval(()=>{if(!document.hidden)pres(true)},180000);
   unsubL&&unsubL();
   unsubL=onSnapshot(
@@ -130,7 +131,7 @@ async function boot(u){
     ()=>toast("Cannot load chats")
   );
 }
-$("m4").onclick=()=>{location.href="admin.html"};
+$("adm").onclick=()=>{location.href="admin.html"};
 $("me").onclick=()=>{location.href="profile.html"};
 
 /* ---------- Chat list + search ---------- */
