@@ -18,6 +18,7 @@ document.write('<link rel="stylesheet" href="css/chat.css'+window.V+'">');
 <!-- Vector icons -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
   <defs>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></symbol>
   <symbol id="i-replay" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></symbol>
   <symbol id="i-eye" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></symbol>
   <symbol id="i-flip" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/></symbol>
@@ -57,7 +58,8 @@ document.write('<link rel="stylesheet" href="css/chat.css'+window.V+'">');
     <header>
       <button class="av" id="me" type="button" aria-label="Open profile"></button>
       <b id="mn"></b>
-      <button class="ic" id="out" type="button" aria-label="Logout"><svg class="i"><use href="#i-logout"/></svg></button>
+      <button class="ic hide" id="adm" type="button" aria-label="Admin panel"><svg class="i"><use href="#i-shield"/></svg></button>
+<button class="ic" id="out" type="button" aria-label="Logout"><svg class="i"><use href="#i-logout"/></svg></button>
     </header>
     <div class="sbox">
       <svg class="i s-ic"><use href="#i-search"/></svg>
@@ -99,7 +101,7 @@ document.write('<link rel="stylesheet" href="css/chat.css'+window.V+'">');
 
       <!-- 3-dot menu -->
       <div id="menu" class="hide" role="menu">
-        <button type="button" id="m4" class="hide">Admin panel</button>
+        
         <button type="button" id="m1">Clear chat</button>
         <button type="button" id="m2">Delete chat</button>
         <button type="button" id="m3">Log out</button>
