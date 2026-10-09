@@ -346,6 +346,7 @@ function renderMsgs(){
       else if(m.video){el.classList.add("big");el.appendChild(videoEl(m))}
       else if(m.img){
         el.classList.add("big");
+        if(m.stk){el.classList.remove("big");el.classList.add("stk")}
         const im=document.createElement("img");
         im.src=m.img;im.alt="Photo";im.loading="lazy";
         im.onload=()=>{if(stickNow)box.scrollTop=box.scrollHeight};
@@ -501,7 +502,7 @@ $("rx").onclick=()=>{if(editing){$("in").value="";grow()}clearRep()};
 async function send(c){
   await addDoc(collection(db,"chats",cur.id,"messages"),{sender:me.uid,t:serverTimestamp(),seen:false,...c});
   await updateDoc(doc(db,"chats",cur.id),{
-    lastMsg:c.text||(c.audio?"Voice message":c.video?"Video":"Photo"),lastAt:serverTimestamp(),lastFrom:me.uid,lastDel:false,
+    lastMsg:c.text||(c.stk?"Sticker":c.audio?"Voice message":c.video?"Video":"Photo"),lastAt:serverTimestamp(),lastFrom:me.uid,lastDel:false,
     ["unread."+cur.o.uid]:increment(1),["typing."+me.uid]:0
   });
 }
@@ -591,7 +592,8 @@ function upload(f,max,onp){
   return new Promise(async(res,rej)=>{
     try{
       const fd=new FormData();
-      fd.append("file",await shrink(f,max),"photo.jpg");
+      const keep=/^image\/(gif|webp)$/i.test(f.type)||(/^image\/png$/i.test(f.type)&&f.size<1572864);   // GIF, WebP, chhoti PNG: bina compress
+      fd.append("file",keep?f:await shrink(f,max),keep?(f.name||"image"):"photo.jpg");
       fd.append("upload_preset",PRESET);
       const x=new XMLHttpRequest();
       x.open("POST","https://api.cloudinary.com/v1_1/"+CLOUD+"/image/upload");
@@ -1115,4 +1117,49 @@ function ytPos(){
   s.top=(r.top-b.top+box.scrollTop)+"px";
   s.width=r.width+"px";s.height=r.height+"px";
 }
+/* ---------- Paste / keyboard images, GIFs, stickers ---------- */
+function stagePaste(f,fromKb){
+  if(!cur)return toast("Open a chat first");
+  if(f.size>8*1048576)return toast("Image is too large (max 8 MB)");
+  const u=URL.createObjectURL(f),gif=/gif/i.test(f.type);
+  const w=document.createElement("div");w.className="pvw";
+  w.innerHTML='<div class="pvb"><img alt=""><div class="pvt"></div><div class="pvr"><button type="button" class="pvn">Cancel</button><button type="button" class="pvy">Send</button></div></div>';
+  w.querySelector("img").src=u;
+  w.querySelector(".pvt").textContent=(gif?"GIF":fromKb?"Sticker":"Image")+" · "+(f.size<1048576?Math.round(f.size/1024)+" KB":(f.size/1048576).toFixed(1)+" MB");
+  const close=()=>{URL.revokeObjectURL(u);w.remove()};
+  w.querySelector(".pvn").onclick=close;
+  w.querySelector(".pvy").onclick=()=>{close();sendImageFile(f,fromKb&&!gif)};
+  w.addEventListener("click",e=>{if(e.target===w)close()});
+  document.body.appendChild(w);
+}
+
+async function sendImageFile(f,sticker){
+  if(!cur||noCloud())return;
+  const chatId=cur.id,box=$("msgs"),tmp=document.createElement("div"),pv=URL.createObjectURL(f);
+  tmp.className="m me new upl big";
+  tmp.innerHTML='<div class="up"><img src="'+pv+'" alt=""><div class="ring"><svg viewBox="0 0 44 44"><circle class="bg" cx="22" cy="22" r="19"/><circle class="fg" cx="22" cy="22" r="19"/></svg><b>0%</b></div></div>';
+  box.appendChild(tmp);box.scrollTo({top:box.scrollHeight,behavior:"smooth"});
+  const fg=tmp.querySelector(".fg"),pc=tmp.querySelector("b");
+  try{
+    const url=await upload(f,1280,p=>{fg.style.strokeDashoffset=119.4*(1-p/100);pc.textContent=p+"%"});
+    if(!cur||cur.id!==chatId)return toast("Chat changed, image not sent");
+    force=true;await send(sticker?{img:url,stk:true}:{img:url});
+  }catch(x){toast("Image upload failed")}
+  finally{tmp.remove();URL.revokeObjectURL(pv)}
+}
+
+// Ctrl+V / paste: image ho to preview, text ho to normal paste
+$("in").addEventListener("paste",e=>{
+  const fs=[...(e.clipboardData&&e.clipboardData.files||[])].filter(f=>/^image\//.test(f.type));
+  if(!fs.length)return;
+  e.preventDefault();stagePaste(fs[0],false);
+});
+
+// Android app: keyboard ke GIF aur sticker yahan aate hain (base64)
+window.__kbImage=async(b64,mime)=>{
+  try{
+    const b=await (await fetch("data:"+mime+";base64,"+b64)).blob();
+    stagePaste(new File([b],"keyboard."+(mime.split("/")[1]||"png"),{type:mime}),true);
+  }catch(e){toast("Could not read the image")}
+};
 sync();
