@@ -20,7 +20,8 @@ const ico=n=>'<svg class="i" aria-hidden="true"><use href="#i-'+n+'"/></svg>';
     eye:'<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
     flip:'<path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/>',
     play:'<polygon points="6 3 20 12 6 21 6 3"/>',
-    pause:'<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>'
+        pause:'<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>',
+    camera:'<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>'
   };
   let h="";
   for(const k in S)if(!document.getElementById("i-"+k))h+='<symbol id="i-'+k+'" viewBox="0 0 24 24">'+S[k]+'</symbol>';
@@ -30,7 +31,7 @@ const SNAP={serverTimestamps:"estimate"};
 let me=null,cur=null,chats=null,chatsAll=[],msgs=[],seen=new Set();
 let first=false,force=false,selId=null,rep=null,editing=null,ou={},clr=0,vurl="",askRes,swiped=false;
 let unsubL,unsubM,unsubU,st,hb,lt=0;
-let inChat=false,vOpen=false,iOpen=false;
+let inChat=false,vOpen=false,iOpen=false,cOpen=false;
 let all=new Map(),hasMore=true,loadingOld=false;
 const PAGE=30;
 let pinned=true,scAnim=null;
@@ -46,9 +47,18 @@ function fit(){
   document.documentElement.style.setProperty("--vh",h+"px");
   $("app").style.top=(vv?vv.offsetTop:0)+"px";
   window.scrollTo(0,0);
+  const mb=$("msgs");if(mb&&pinned)mb.scrollTop=mb.scrollHeight;
 }
-if(vv){vv.addEventListener("resize",fit);vv.addEventListener("scroll",fit)}
-addEventListener("resize",fit);fit();
+let fitT=0;
+function fitSoon(){fit();clearTimeout(fitT);fitT=setTimeout(fit,150);setTimeout(fit,400)}
+if(vv){vv.addEventListener("resize",fitSoon);vv.addEventListener("scroll",fit)}
+addEventListener("resize",fitSoon);
+document.addEventListener("focusin",fitSoon);
+document.addEventListener("focusout",fitSoon);
+// cursor message box ya search mein ho to keyboard ki height badalne par bhi saath chalo
+setInterval(()=>{const a=document.activeElement;if(a&&(a.id==="in"||a.id==="q"))fit()},250);
+window.__fit=fit;
+fit();
 document.addEventListener("gesturestart",e=>e.preventDefault());
 
 /* ---------- Helpers ---------- */
@@ -278,6 +288,7 @@ $("back").onclick=()=>closeChat(true);
 
 // phone ka back button
 addEventListener("popstate",()=>{
+  if(cOpen){cOpen=false;stopCam();return}
   if(vOpen){vOpen=false;show("view",0);return}
   if(iOpen){iOpen=false;show("pinfo",0);return}
   if(inChat){inChat=false;closeChat(true)}
@@ -546,18 +557,7 @@ $("in").oninput=()=>{
 };
 // Enter = nayi line. Message sirf send button se jayega.
 
-/* ---------- Emoji ---------- */
-Array.from("😀😃😄😁😆😅😂🤣😊😇🙂😉😍🥰😘😋😛😜🤪😎🤩🥳😏😒😞😔😟😕😣😖😫😭😢😤😡🤯😳🥺😱🤗🤔🤭🤫🙄😴👍👎👏🙌🙏💪👋🤞💗💛💚💙💜🖤💔💕💖🔥✨🎉🎂🌸🌹🌙⭐").forEach(e=>{
-  const b=document.createElement("button");b.type="button";b.textContent=e;
-  b.addEventListener("pointerdown",x=>x.preventDefault());
-  b.onclick=()=>{
-    const t=$("in"),a=t.selectionStart,z=t.selectionEnd;
-    t.value=t.value.slice(0,a)+e+t.value.slice(z);
-    t.selectionStart=t.selectionEnd=a+e.length;grow();t.focus();
-  };
-  $("emo").appendChild(b);
-});
-$("eb").onclick=()=>$("emo").classList.toggle("hide");
+
 
 /* ---------- Calls ---------- */
 $("ca").onclick=()=>cur&&startCall({...cur.o,photo:ou.photo||""},"audio");
@@ -1205,4 +1205,68 @@ function jtShow(m){
 function jump(){newCount=0;pinned=true;show("jt",0);updateJd();smoothBottom()}
 $("jd").onclick=jump;
 $("jt").onclick=jump;
+/* ---------- Camera (emoji ki jagah) ---------- */
+$("eb").innerHTML=ico("camera");$("eb").setAttribute("aria-label","Camera");
+let camS=null,camF="environment",camB=null,camU="";
+const camEl=()=>document.getElementById("camw");
+
+function stopTracks(){if(camS){camS.getTracks().forEach(t=>t.stop());camS=null}}
+function stopCam(){
+  stopTracks();
+  if(camU){URL.revokeObjectURL(camU);camU=""}
+  const w=camEl();if(w)w.remove();
+  camB=null;
+}
+function closeCam(){if(cOpen)history.back();else stopCam()}
+
+async function startCam(){
+  const w=camEl();if(!w)return;
+  stopTracks();
+  try{
+    camS=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:camF}},audio:false});
+    if(!camEl()){stopTracks();return}
+    const v=w.querySelector(".camv");v.srcObject=camS;v.classList.toggle("front",camF==="user");
+  }catch(e){
+    toast(e&&e.name==="NotAllowedError"?"Allow camera permission":e&&e.name==="NotReadableError"?"Camera is in use by another app":"Could not open camera");
+    closeCam();
+  }
+}
+
+function openCam(){
+  if(!cur||camEl())return;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return toast("Camera needs HTTPS and a modern browser");
+  const w=document.createElement("div");w.className="camw";w.id="camw";
+  w.innerHTML='<video class="camv" autoplay playsinline muted></video><img class="camp hide" alt="">'+
+    '<button type="button" class="camx" aria-label="Close">'+ico("x")+'</button>'+
+    '<div class="cambar cam1"><span></span><button type="button" class="camshot" aria-label="Take photo"></button><button type="button" class="camflip" aria-label="Switch camera">'+ico("flip")+'</button></div>'+
+    '<div class="cambar cam2 hide"><button type="button" class="camretake">Retake</button><button type="button" class="camsend">Send</button></div>';
+  document.body.appendChild(w);
+  history.pushState({bt:"cam"},"");cOpen=true;
+  const v=w.querySelector(".camv"),p=w.querySelector(".camp"),b1=w.querySelector(".cam1"),b2=w.querySelector(".cam2");
+  w.querySelector(".camx").onclick=closeCam;
+  w.querySelector(".camflip").onclick=()=>{camF=camF==="user"?"environment":"user";startCam()};
+  w.querySelector(".camshot").onclick=()=>{
+    if(!v.videoWidth)return;
+    const c=document.createElement("canvas");c.width=v.videoWidth;c.height=v.videoHeight;
+    c.getContext("2d").drawImage(v,0,0);                  // asli photo, mirror nahi
+    c.toBlob(b=>{
+      if(!b)return toast("Could not take photo");
+      camB=b;camU=URL.createObjectURL(b);p.src=camU;
+      v.classList.add("hide");p.classList.remove("hide");b1.classList.add("hide");b2.classList.remove("hide");
+      stopTracks();
+    },"image/jpeg",.92);
+  };
+  w.querySelector(".camretake").onclick=()=>{
+    p.classList.add("hide");v.classList.remove("hide");b2.classList.add("hide");b1.classList.remove("hide");
+    if(camU){URL.revokeObjectURL(camU);camU=""}
+    camB=null;startCam();
+  };
+  w.querySelector(".camsend").onclick=()=>{
+    if(!camB)return;
+    const f=new File([camB],"camera-"+Date.now()+".jpg",{type:"image/jpeg"});
+    closeCam();sendImageFile(f,false);
+  };
+  startCam();
+}
+$("eb").onclick=openCam;
 sync();
