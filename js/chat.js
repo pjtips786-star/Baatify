@@ -47,7 +47,7 @@ function fit(){
   document.documentElement.style.setProperty("--vh",h+"px");
   $("app").style.top=(vv?vv.offsetTop:0)+"px";
   window.scrollTo(0,0);
-  const mb=$("msgs");if(mb&&pinned)mb.scrollTop=mb.scrollHeight;
+  
 }
 let fitT=0;
 function fitSoon(){fit();clearTimeout(fitT);fitT=setTimeout(fit,150);setTimeout(fit,400)}
