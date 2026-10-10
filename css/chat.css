@@ -281,3 +281,14 @@ button.av{cursor:pointer}
 #jt b{font-size:13px}
 #jt span{font-size:12px;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media(prefers-reduced-motion:no-preference){#jt{animation:pop .25s ease-out}}
+/* ----- Camera ----- */
+.camw{position:fixed;inset:0;z-index:45;background:#000;display:flex;flex-direction:column}
+.camv,.camp{flex:1;min-height:0;width:100%;object-fit:contain;background:#000}
+.camv.front{transform:scaleX(-1)}
+.camx{position:absolute;left:12px;top:calc(12px + env(safe-area-inset-top,0px));width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.18);color:#fff;display:grid;place-items:center;z-index:2;cursor:pointer}
+.cambar{display:flex;align-items:center;justify-content:space-around;gap:12px;padding:16px 20px calc(18px + env(safe-area-inset-bottom,0px));background:#000}
+.camshot{width:70px;height:70px;border-radius:50%;border:4px solid #fff;background:rgba(255,255,255,.25);cursor:pointer}
+.camflip{width:48px;height:48px;border-radius:50%;border:0;background:rgba(255,255,255,.18);color:#fff;display:grid;place-items:center;cursor:pointer}
+.camretake,.camsend{flex:1;max-width:150px;padding:13px;border:0;border-radius:26px;font-weight:600;cursor:pointer}
+.camretake{background:rgba(255,255,255,.2);color:#fff}
+.camsend{background:var(--g);color:#fff}
