@@ -531,17 +531,17 @@ $("rx").onclick=()=>{if(editing){$("in").value="";grow()}clearRep()};
 
 /* ---------- Sending ---------- */
 async function send(c){
-  const to=cur.o.uid;
+  
   await addDoc(collection(db,"chats",cur.id,"messages"),{sender:me.uid,t:serverTimestamp(),seen:false,...c});
   await updateDoc(doc(db,"chats",cur.id),{
     lastMsg:c.text||(c.stk?"Sticker":c.audio?"Voice message":c.video?"Video":"Photo"),lastAt:serverTimestamp(),lastFrom:me.uid,lastDel:false,
     ["unread."+cur.o.uid]:increment(1),["typing."+me.uid]:0
   });
-    sendPush({toUid:to,kind:"msg",text:pushText(c)});
+    
 }
 
 async function doSend(){
-  
+  const to=cur.o.uid;
   const t=$("in").value.trim();if(!t||!cur)return;
   $("in").value="";grow();
   if(editing){
@@ -557,6 +557,7 @@ async function doSend(){
   const r=rep;clearRep();
   try{await send(r?{text:t,reply:r}:{text:t})}catch(x){toast("Message not sent")}
   $("in").focus();
+  sendPush({toUid:to,kind:"msg",text:pushText(c)});
 }
 
 // In buttons par focus mat chhodo, taaki keyboard band na ho
