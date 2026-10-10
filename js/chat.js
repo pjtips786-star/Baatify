@@ -1,6 +1,6 @@
 
 import {onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
-import {doc,getDoc,setDoc,updateDoc,addDoc,collection,query,where,orderBy,limit,startAt,startAfter,endAt,onSnapshot,getDocs,serverTimestamp,increment} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import {doc,getDoc,setDoc,updateDoc,addDoc,collection,query,where,orderBy,limit,startAt,startAfter,endAt,onSnapshot,getDocs,serverTimestamp,increment,deleteDoc} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const V=window.V||"";
 const {auth,db}=await import("./firebase.js"+V);
@@ -98,6 +98,11 @@ onAuthStateChanged(auth,u=>{
 
 async function logout(){
   await pres(false);
+  try{
+    if(window.__fcmTok&&me)await deleteDoc(doc(db,"users",me.uid,"devices",window.__fcmTok));   // is phone par notification band
+    localStorage.removeItem("bt_fcm");
+  }catch(e){}
+  try{window.Android&&Android.setUser("")}catch(e){}
   try{localStorage.removeItem("bt_me")}catch(e){}
   signOut(auth);
 }
@@ -121,6 +126,7 @@ async function boot(u){
   initCalls({uid:me.uid,name:me.name,photo:me.photo||""});
   
   if(me.uid===OWNER_UID)show("adm",1);
+  try{if(window.Android&&Android.setUser){Android.setUser(me.uid);Android.requestToken()}}catch(e){}
   pres(true);clearInterval(hb);hb=setInterval(()=>{if(!document.hidden)pres(true)},180000);
   unsubL&&unsubL();
   unsubL=onSnapshot(
@@ -140,6 +146,12 @@ async function boot(u){
     },
     ()=>toast("Cannot load chats")
   );
+    const q0=new URLSearchParams(location.search).get("open");
+  if(q0||pendingOpen){
+    const t=q0||pendingOpen;pendingOpen=null;
+    history.replaceState(null,"",location.pathname);
+    window.__openChat(t);
+  }
 }
 $("adm").onclick=()=>{location.href="admin.html"};
 $("me").onclick=()=>{location.href="profile.html"};
@@ -519,14 +531,17 @@ $("rx").onclick=()=>{if(editing){$("in").value="";grow()}clearRep()};
 
 /* ---------- Sending ---------- */
 async function send(c){
+  const to=cur.o.uid;
   await addDoc(collection(db,"chats",cur.id,"messages"),{sender:me.uid,t:serverTimestamp(),seen:false,...c});
   await updateDoc(doc(db,"chats",cur.id),{
     lastMsg:c.text||(c.stk?"Sticker":c.audio?"Voice message":c.video?"Video":"Photo"),lastAt:serverTimestamp(),lastFrom:me.uid,lastDel:false,
     ["unread."+cur.o.uid]:increment(1),["typing."+me.uid]:0
   });
+    sendPush({toUid:to,kind:"msg",text:pushText(c)});
 }
 
 async function doSend(){
+  
   const t=$("in").value.trim();if(!t||!cur)return;
   $("in").value="";grow();
   if(editing){
@@ -1269,4 +1284,5 @@ function openCam(){
   startCam();
 }
 $("eb").onclick=openCam;
+  sendPush({toUid:to,kind:"msg",text:pushText(c)});
 sync();

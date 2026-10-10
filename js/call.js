@@ -196,6 +196,7 @@ export async function startCall(o,type){
     const off=await pc.createOffer();await pc.setLocalDescription(off);
     await setDoc(ref,{from:me.uid,to:o.uid,fromName:me.name,fromPhoto:me.photo||"",type,status:"ringing",
       offer:{type:off.type,sdp:off.sdp},createdAt:serverTimestamp()});
+      if(window.__pushCall)window.__pushCall(o.uid,type,ref.id);
     pc.ready=true;pc.q.forEach(pc.send);pc.q=[];
     unsubs.push(onSnapshot(ref,async s=>{
       const d=s.data();if(!d||!call)return;
