@@ -231,6 +231,7 @@ async function search(v){
 async function openChat(o){
   const id=[me.uid,o.uid].sort().join("_");
   cur={id,o};seen=new Set();vcache.clear();first=true;force=false;selId=null;editing=null;ou={};
+  newCount=0;lastTs=0;show("jt",0);show("jw",0);
   all=new Map();hasMore=true;loadingOld=false;
   clr=clrOf(chatsAll.find(x=>x.id===id));
   unsubM&&unsubM();unsubU&&unsubU();clearRep();
@@ -262,6 +263,7 @@ unsubM=onSnapshot(
 }
 
 function closeChat(resetUnread){
+  show("jw",0);
 ytStop();
 if(iOpen){iOpen=false;show("pinfo",0)}
 if(rec)recStop(true);
@@ -318,6 +320,10 @@ function renderMsgs(){
   if(!ytLayer.parentNode)box.appendChild(ytLayer);
   let day="",prev=null;
   const vis=msgs.filter(m=>!clr||tms(m.t)>clr);
+    // naya message aaya aur tum upar ho: toast + arrow
+  const inc=first?[]:vis.filter(m=>m.sender!==me.uid&&!m.deleted&&tms(m.t)>lastTs);
+  if(!first&&!stickNow&&inc.length){newCount+=inc.length;jtShow(inc[inc.length-1])}
+  vis.forEach(m=>{const t=tms(m.t);if(t>lastTs)lastTs=t});
   if(selId&&!vis.some(m=>m.id===selId))selId=null;
 
   vis.forEach(m=>{
@@ -398,6 +404,7 @@ function renderMsgs(){
   }else box.scrollTop=top;
   syncSel();
   ytPos();
+  updateJd();
 }
 
 $("msgs").onclick=e=>{if(e.target===$("msgs")&&selId){selId=null;renderMsgs()}};
@@ -417,6 +424,7 @@ function stopAnim(){if(scAnim){cancelAnimationFrame(scAnim);scAnim=null}}
 $("msgs").addEventListener("scroll",()=>{
   if(scAnim)return;                                       // apne animation ko ignore karo
   const b=$("msgs");pinned=b.scrollHeight-b.scrollTop-b.clientHeight<140;
+  updateJd();
   if(b.scrollTop<60)loadOlder();
 });
 
@@ -1162,4 +1170,39 @@ window.__kbImage=async(b64,mime)=>{
     stagePaste(new File([b],"keyboard."+(mime.split("/")[1]||"png"),{type:mime}),true);
   }catch(e){toast("Could not read the image")}
 };
+/* ---------- Jump to latest: arrow + new message toast ---------- */
+let newCount=0,lastTs=0,jtTimer=0;
+
+const jw=document.createElement("div");jw.id="jw";jw.className="hide";
+jw.innerHTML='<button type="button" id="jt" class="hide"><b></b><span></span></button>'+
+  '<button type="button" id="jd" aria-label="Jump to latest message"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg><i class="jb hide"></i></button>';
+$("pane").appendChild(jw);
+
+const prevText=m=>m.text?m.text.slice(0,40):m.audio?"Voice message":m.video?"Video":m.img?(m.stk?"Sticker":"Photo"):"";
+
+function placeJw(){
+  const p=$("pane").getBoundingClientRect(),m=$("msgs").getBoundingClientRect();
+  $("jw").style.bottom=Math.round(p.bottom-m.bottom+12)+"px";     // message box ke theek upar
+}
+new ResizeObserver(placeJw).observe($("msgs"));                    // keyboard ya reply bar se jagah badle to saath chale
+
+function updateJd(){
+  if(pinned){newCount=0;show("jt",0)}
+  show("jw",!pinned&&!!cur);
+  const b=$("jd").querySelector(".jb");
+  b.textContent=newCount>9?"9+":newCount;b.classList.toggle("hide",!newCount);
+  placeJw();
+}
+
+function jtShow(m){
+  const t=$("jt");
+  t.querySelector("b").textContent=newCount>1?newCount+" new messages":"New message";
+  t.querySelector("span").textContent=prevText(m);
+  show("jt",1);clearTimeout(jtTimer);jtTimer=setTimeout(()=>show("jt",0),4000);
+  updateJd();
+}
+
+function jump(){newCount=0;pinned=true;show("jt",0);updateJd();smoothBottom()}
+$("jd").onclick=jump;
+$("jt").onclick=jump;
 sync();
