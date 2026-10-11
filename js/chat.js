@@ -1285,7 +1285,7 @@ function openCam(){
 }
 $("eb").onclick=openCam;
   /* ---------- App notifications (sirf Android app) ---------- */
-const PUSH_DEBUG=true;      // true karoge to har push ka natija toast mein dikhega
+const PUSH_DEBUG=false;      // true karoge to har push ka natija toast mein dikhega
 let pendingOpen=null;
 
 const pushText=c=>c.text?c.text.slice(0,100):c.audio?"Voice message":c.video?"Video":c.stk?"Sticker":"Photo";
