@@ -229,6 +229,10 @@ export function initCalls(user){
       if(Date.now()-ts>45000)return;                       // purani call ignore
       if(call){updateDoc(ch.doc.ref,{status:"declined"}).catch(()=>{});return} // busy
       incoming(ch.doc.id,d);
+      if(window.__autoAnswer===ch.doc.id){                 // notification ke Answer se aaye: seedha utha lo
+        window.__autoAnswer="";
+        setTimeout(()=>{if(call&&call.id===ch.doc.id)accept()},400);
+      }
     }),
     e=>console.error("CALL LISTEN ERROR:",e)
   );
@@ -289,3 +293,7 @@ function end(msg,notify){
   call=null;pend=[];$("call").className="hide";
   if(msg)toast(msg);
 }
+window.__answerCall=id=>{
+  if(call&&call.id===id&&call.role==="callee"&&!pc){accept();return}   // app pehle se chal rahi thi
+  window.__autoAnswer=id;
+};

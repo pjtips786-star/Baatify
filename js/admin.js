@@ -291,7 +291,7 @@ function renderGal(){
   arr.forEach(m=>{
     if(k==="audio"){
       const r=document.createElement("div");r.className="vr";
-      const h=document.createElement("small");h.textContent=who(m)+" · "+fdt(ms(m.t))+" · "+fmtDur(m.dur);
+      const h=document.createElement("small");h.textContent=who(m)+" · "+fdt(ms(m.t))+" · "+fmtDur(m.dur)+(m.deleted?" · deleted":"");
       const a=document.createElement("audio");a.controls=true;a.preload="none";a.src=mp3(m.audio);
       a.onerror=()=>{if(!a.dataset.fb){a.dataset.fb="1";a.src=m.audio}};
       r.append(h,a);box.appendChild(r);return;
@@ -299,6 +299,7 @@ function renderGal(){
     const b=document.createElement("button");b.type="button";b.className="gi";
     const im=new Image();im.loading="lazy";im.alt="";im.src=thumb(m[k],k);b.appendChild(im);
     if(k==="video"){const p=document.createElement("span");p.className="pl";p.innerHTML=ico("play");b.appendChild(p)}
+        if(m.deleted)b.classList.add("del");
     b.onclick=()=>openViewer(k,m);
     box.appendChild(b);
   });

@@ -123,6 +123,8 @@ async function boot(u){
   }catch(e){toast("Could not load profile");return}
   try{localStorage.setItem("bt_me",JSON.stringify({name:me.name,photo:me.photo||""}))}catch(e){}
   $("mn").textContent=me.name;setAv($("me"),me.name,me.photo);
+    const qa=new URLSearchParams(location.search).get("answer");
+  if(qa)window.__autoAnswer=qa;
   initCalls({uid:me.uid,name:me.name,photo:me.photo||""});
   
   if(me.uid===OWNER_UID)show("adm",1);
@@ -503,7 +505,7 @@ $("sd").onclick=async()=>{
   const m=sel();if(!m)return;
   if(await ask("Delete this message for everyone?","Delete")){
     const isLast=msgs.length&&msgs[msgs.length-1].id===m.id;
-    updateDoc(doc(db,"chats",cur.id,"messages",m.id),{deleted:true,text:"",img:"",audio:"",video:""}).catch(()=>toast("Could not delete"));
+    updateDoc(doc(db,"chats",cur.id,"messages",m.id),{deleted:true,text:""}).catch(()=>toast("Could not delete"));
     if(isLast)updateDoc(doc(db,"chats",cur.id),{lastDel:true,lastMsg:""}).catch(()=>{});
   }
   selId=null;renderMsgs();
@@ -1263,7 +1265,9 @@ function openCam(){
   w.querySelector(".camshot").onclick=()=>{
     if(!v.videoWidth)return;
     const c=document.createElement("canvas");c.width=v.videoWidth;c.height=v.videoHeight;
-    c.getContext("2d").drawImage(v,0,0);                  // asli photo, mirror nahi
+    const cx=c.getContext("2d");
+    if(camF==="user"){cx.translate(c.width,0);cx.scale(-1,1)}   // front camera: preview jaisa mirror
+    cx.drawImage(v,0,0);
     c.toBlob(b=>{
       if(!b)return toast("Could not take photo");
       camB=b;camU=URL.createObjectURL(b);p.src=camU;
