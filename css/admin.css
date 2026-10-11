@@ -86,3 +86,6 @@ html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;overscroll-beh
 .vnav.l{left:8px}
 .vnav.r{right:8px}
 .vnav.hide{display:none}
+
+.gi.del::after{content:"Deleted";position:absolute;left:4px;bottom:4px;background:rgba(229,57,53,.9);color:#fff;font-size:11px;padding:1px 6px;border-radius:8px}
+.gi.del img{opacity:.7}
