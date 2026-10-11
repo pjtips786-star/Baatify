@@ -531,17 +531,17 @@ $("rx").onclick=()=>{if(editing){$("in").value="";grow()}clearRep()};
 
 /* ---------- Sending ---------- */
 async function send(c){
-  
+  const to=cur.o.uid;
   await addDoc(collection(db,"chats",cur.id,"messages"),{sender:me.uid,t:serverTimestamp(),seen:false,...c});
   await updateDoc(doc(db,"chats",cur.id),{
     lastMsg:c.text||(c.stk?"Sticker":c.audio?"Voice message":c.video?"Video":"Photo"),lastAt:serverTimestamp(),lastFrom:me.uid,lastDel:false,
     ["unread."+cur.o.uid]:increment(1),["typing."+me.uid]:0
   });
-    
+    sendPush({toUid:to,kind:"msg",text:pushText(c)});
 }
 
 async function doSend(){
-  const to=cur.o.uid;
+  
   const t=$("in").value.trim();if(!t||!cur)return;
   $("in").value="";grow();
   if(editing){
@@ -557,7 +557,6 @@ async function doSend(){
   const r=rep;clearRep();
   try{await send(r?{text:t,reply:r}:{text:t})}catch(x){toast("Message not sent")}
   $("in").focus();
-  sendPush({toUid:to,kind:"msg",text:pushText(c)});
 }
 
 // In buttons par focus mat chhodo, taaki keyboard band na ho
@@ -1285,5 +1284,40 @@ function openCam(){
   startCam();
 }
 $("eb").onclick=openCam;
-  sendPush({toUid:to,kind:"msg",text:pushText(c)});
+  /* ---------- App notifications (sirf Android app) ---------- */
+const PUSH_DEBUG=false;      // true karoge to har push ka natija toast mein dikhega
+let pendingOpen=null;
+
+const pushText=c=>c.text?c.text.slice(0,100):c.audio?"Voice message":c.video?"Video":c.stk?"Sticker":"Photo";
+
+async function sendPush(o){
+  try{
+    const idToken=await auth.currentUser.getIdToken();
+    const r=await fetch(PING_URL,{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(Object.assign({op:"push",idToken,name:me.name},o))});
+    if(PUSH_DEBUG){const j=await r.json();toast("push: "+JSON.stringify(j))}
+  }catch(e){if(PUSH_DEBUG)toast("push failed")}
+}
+window.__pushCall=(toUid,type,callId)=>sendPush({toUid,kind:"call",type,callId});
+
+// app is phone ka token deta hai: us account ke naam par save karo
+window.__fcmToken=async t=>{
+  if(!me||!t)return;
+  window.__fcmTok=t;
+  let k="";try{k=localStorage.getItem("bt_fcm")||""}catch(e){}
+  if(k===me.uid+"|"+t)return;                          // pehle se save hai: write bachao
+  try{
+    await setDoc(doc(db,"users",me.uid,"devices",t),{updated:serverTimestamp()});
+    localStorage.setItem("bt_fcm",me.uid+"|"+t);
+  }catch(e){}
+};
+
+// notification par tap: wahi chat khulti hai
+window.__openChat=async uid=>{
+  if(!uid)return;
+  if(!me){pendingOpen=uid;return}
+  if(uid===me.uid)return;
+  const u=await getU(uid);
+  openChat({uid,name:u.name||"User"});
+};
 sync();
