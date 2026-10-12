@@ -282,6 +282,9 @@ function hang(){
 function end(msg,notify){
   if(!call)return;
   const id=call.id;
+    // caller ne call kaata ya koi nahi utha: samne wale ki ringing notification hatao
+  if(call.role==="caller"&&call.id&&!call.gotAns&&msg!=="Call declined"&&window.__pushCallEnd)
+    window.__pushCallEnd(call.peer.uid,call.id);
   clearTimeout(ringT);clearInterval(tick);
   unsubs.forEach(u=>u());unsubs=[];
   if(pc){pc.close();pc=null}

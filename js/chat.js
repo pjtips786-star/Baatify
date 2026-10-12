@@ -1303,6 +1303,7 @@ async function sendPush(o){
   }catch(e){if(PUSH_DEBUG)toast("push failed")}
 }
 window.__pushCall=(toUid,type,callId)=>sendPush({toUid,kind:"call",type,callId});
+window.__pushCallEnd=(toUid,callId)=>sendPush({toUid,kind:"callend",callId});
 
 // app is phone ka token deta hai: us account ke naam par save karo
 window.__fcmToken=async t=>{
