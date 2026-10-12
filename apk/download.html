@@ -504,19 +504,6 @@ h1 .highlight::after {
   50%      { box-shadow: 0 12px 32px rgba(0,168,132,0.45), 0 0 0 14px rgba(37,211,102,0); }
 }
 
-.progress-fill {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  width: 0%;
-  background: rgba(255, 255, 255, 0.25);
-  transition: width 0.6s ease;
-  border-radius: 50px;
-  pointer-events: none;
-  z-index: 0;
-}
-
 .btn-primary .btn-icon,
 .btn-primary .spinner,
 .btn-primary #btnText {
@@ -789,7 +776,6 @@ h1 .highlight::after {
       <div class="buttons">
         <button id="downloadBtn" class="btn-primary" 
                 data-apk="https://github.com/pjtips786-star/Baatify/releases/download/App/app-debug.apk">
-          <div class="progress-fill" id="progressFill"></div>
           <svg class="btn-icon" viewBox="0 0 24 24"><path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/></svg>
           <span class="spinner"></span>
           <span id="btnText">Download APK</span>
@@ -841,14 +827,12 @@ h1 .highlight::after {
 </div>
 
 <!-- ══════════════════════════════════════════════════════════
-     DOWNLOAD SCRIPT — Simple & Honest
-     Starting → File download → Download Started ✓
-     (No fake progress!)
+     DOWNLOAD SCRIPT — Exact 3-Step Flow
+     Click → "Fetching..." → "Fetching Complete" → "Starting Shortly..."
      ══════════════════════════════════════════════════════════ -->
 <script>
 const downloadBtn = document.getElementById('downloadBtn');
 const btnText = document.getElementById('btnText');
-const progressFill = document.getElementById('progressFill');
 const downloadStatus = document.getElementById('downloadStatus');
 const statusText = document.getElementById('statusText');
 
@@ -857,21 +841,22 @@ let isDownloading = false;
 downloadBtn.addEventListener('click', function (e) {
   e.preventDefault();
 
-  // Prevent double click
   if (isDownloading) return;
   isDownloading = true;
 
   const apkUrl = this.dataset.apk;
 
-  // ✅ STEP 1: Loading state — "Starting..."
+  // ═══════════════════════════════════════════════
+  // STEP 1: "Fetching..." state
+  // ═══════════════════════════════════════════════
   this.classList.add('loading');
-  btnText.textContent = 'Starting...';
-  progressFill.style.width = '0%';
+  btnText.textContent = 'Fetching...';
   downloadStatus.classList.add('show');
-  statusText.textContent = 'Preparing your download...';
+  statusText.textContent = 'Fetching file from server...';
 
-  // ✅ STEP 2: Trigger actual download (immediately)
-  // Method 1: Hidden iframe (bypasses CORS)
+  // ═══════════════════════════════════════════════
+  // STEP 2: Trigger actual download
+  // ═══════════════════════════════════════════════
   const iframe = document.createElement('iframe');
   iframe.style.display = 'none';
   iframe.style.width = '0';
@@ -880,7 +865,7 @@ downloadBtn.addEventListener('click', function (e) {
   iframe.src = apkUrl;
   document.body.appendChild(iframe);
 
-  // Method 2: Direct anchor as backup
+  // Fallback — direct anchor
   setTimeout(() => {
     const link = document.createElement('a');
     link.href = apkUrl;
@@ -894,29 +879,36 @@ downloadBtn.addEventListener('click', function (e) {
     }, 200);
   }, 400);
 
-  // ✅ STEP 3: After 2 seconds — Show "Download Started ✓"
+  // ═══════════════════════════════════════════════
+  // STEP 3: After 2 sec → "Fetching Complete"
+  // ═══════════════════════════════════════════════
   setTimeout(() => {
-    // Fill the progress bar fully
-    progressFill.style.width = '100%';
-
-    // Change button state
     downloadBtn.classList.remove('loading');
     downloadBtn.classList.add('done');
-    btnText.textContent = 'Download Started';
-    statusText.textContent = 'Check your Downloads folder!';
-
-    // ✅ STEP 4: Reset button after 5 seconds
-    setTimeout(() => {
-      downloadBtn.classList.remove('done');
-      btnText.textContent = 'Download APK';
-      progressFill.style.width = '0%';
-      downloadStatus.classList.remove('show');
-      statusText.textContent = 'Ready';
-      isDownloading = false;
-    }, 5000);
+    btnText.textContent = 'Fetching Complete';
+    statusText.textContent = 'File fetched successfully!';
   }, 2000);
 
-  // Cleanup iframe after 15 seconds
+  // ═══════════════════════════════════════════════
+  // STEP 4: After 4 sec → "Starting Shortly..."
+  // ═══════════════════════════════════════════════
+  setTimeout(() => {
+    btnText.textContent = 'Starting Shortly...';
+    statusText.textContent = 'Your download will begin in a moment';
+  }, 4000);
+
+  // ═══════════════════════════════════════════════
+  // STEP 5: After 8 sec → Reset button
+  // ═══════════════════════════════════════════════
+  setTimeout(() => {
+    downloadBtn.classList.remove('done');
+    btnText.textContent = 'Download APK';
+    downloadStatus.classList.remove('show');
+    statusText.textContent = 'Ready';
+    isDownloading = false;
+  }, 8000);
+
+  // Cleanup iframe
   setTimeout(() => {
     if (document.body.contains(iframe)) document.body.removeChild(iframe);
   }, 15000);
