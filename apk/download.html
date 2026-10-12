@@ -510,8 +510,8 @@ h1 .highlight::after {
   left: 0;
   height: 100%;
   width: 0%;
-  background: rgba(255, 255, 255, 0.3);
-  transition: width 0.3s ease;
+  background: rgba(255, 255, 255, 0.25);
+  transition: width 0.6s ease;
   border-radius: 50px;
   pointer-events: none;
   z-index: 0;
@@ -759,14 +759,12 @@ h1 .highlight::after {
   <!-- ========== HERO ========== -->
   <div class="hero">
 
-    <!-- ═══════════════════════════════════════════════
-         BANNER — AAPKI IMAGE (../assets/banner.png)
-         ═══════════════════════════════════════════════ -->
+    <!-- BANNER -->
     <div class="hero-banner">
       <img src="../assets/banner.png" alt="Baatify Banner">
     </div>
 
-    <!-- BADGES ROW — IMAGE KE NEECHE -->
+    <!-- BADGES ROW -->
     <div class="badge-row">
       <div class="badge-pill">
         <span class="dot"></span> Now Live
@@ -787,9 +785,7 @@ h1 .highlight::after {
         Baatify — ek fast, secure aur simple messaging app. Apne loved ones se judiye, end-to-end encryption ke saath.
       </p>
 
-      <!-- ═══════════════════════════════════════════════
-           DOWNLOAD BUTTON — AAPKA APK LINK
-           ═══════════════════════════════════════════════ -->
+      <!-- DOWNLOAD BUTTON -->
       <div class="buttons">
         <button id="downloadBtn" class="btn-primary" 
                 data-apk="https://github.com/pjtips786-star/Baatify/releases/download/App/app-debug.apk">
@@ -845,7 +841,9 @@ h1 .highlight::after {
 </div>
 
 <!-- ══════════════════════════════════════════════════════════
-     DOWNLOAD SCRIPT — Direct download from GitHub release
+     DOWNLOAD SCRIPT — Simple & Honest
+     Starting → File download → Download Started ✓
+     (No fake progress!)
      ══════════════════════════════════════════════════════════ -->
 <script>
 const downloadBtn = document.getElementById('downloadBtn');
@@ -858,30 +856,22 @@ let isDownloading = false;
 
 downloadBtn.addEventListener('click', function (e) {
   e.preventDefault();
-  
+
+  // Prevent double click
   if (isDownloading) return;
   isDownloading = true;
 
   const apkUrl = this.dataset.apk;
 
-  // STEP 1: Loading state
+  // ✅ STEP 1: Loading state — "Starting..."
   this.classList.add('loading');
   btnText.textContent = 'Starting...';
   progressFill.style.width = '0%';
   downloadStatus.classList.add('show');
-  statusText.textContent = 'Preparing download...';
+  statusText.textContent = 'Preparing your download...';
 
-  // STEP 2: Visual progress
-  let progress = 0;
-  const progressInterval = setInterval(() => {
-    progress += Math.random() * 10 + 3;
-    if (progress > 92) progress = 92;
-    progressFill.style.width = progress + '%';
-    btnText.textContent = Math.round(progress) + '%';
-    statusText.textContent = 'Downloading... ' + Math.round(progress) + '%';
-  }, 250);
-
-  // STEP 3: Trigger download via hidden iframe (bypasses CORS)
+  // ✅ STEP 2: Trigger actual download (immediately)
+  // Method 1: Hidden iframe (bypasses CORS)
   const iframe = document.createElement('iframe');
   iframe.style.display = 'none';
   iframe.style.width = '0';
@@ -890,7 +880,7 @@ downloadBtn.addEventListener('click', function (e) {
   iframe.src = apkUrl;
   document.body.appendChild(iframe);
 
-  // STEP 4: Fallback — also trigger direct anchor click
+  // Method 2: Direct anchor as backup
   setTimeout(() => {
     const link = document.createElement('a');
     link.href = apkUrl;
@@ -902,19 +892,20 @@ downloadBtn.addEventListener('click', function (e) {
     setTimeout(() => {
       if (document.body.contains(link)) document.body.removeChild(link);
     }, 200);
-  }, 600);
+  }, 400);
 
-  // STEP 5: Complete state after 3 seconds
+  // ✅ STEP 3: After 2 seconds — Show "Download Started ✓"
   setTimeout(() => {
-    clearInterval(progressInterval);
+    // Fill the progress bar fully
     progressFill.style.width = '100%';
-    btnText.textContent = 'Download Started';
-    statusText.textContent = 'Check your Downloads folder!';
-    
+
+    // Change button state
     downloadBtn.classList.remove('loading');
     downloadBtn.classList.add('done');
+    btnText.textContent = 'Download Started';
+    statusText.textContent = 'Check your Downloads folder!';
 
-    // STEP 6: Reset after 6 seconds
+    // ✅ STEP 4: Reset button after 5 seconds
     setTimeout(() => {
       downloadBtn.classList.remove('done');
       btnText.textContent = 'Download APK';
@@ -922,10 +913,10 @@ downloadBtn.addEventListener('click', function (e) {
       downloadStatus.classList.remove('show');
       statusText.textContent = 'Ready';
       isDownloading = false;
-    }, 6000);
-  }, 3000);
+    }, 5000);
+  }, 2000);
 
-  // Cleanup iframe
+  // Cleanup iframe after 15 seconds
   setTimeout(() => {
     if (document.body.contains(iframe)) document.body.removeChild(iframe);
   }, 15000);
