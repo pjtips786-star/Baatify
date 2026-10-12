@@ -2,14 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Login - Baatify</title>
 <script>
+
 window.V="?v="+Date.now();
 ["css/style.css","css/auth.css"].forEach(function(f){
   document.write('<link rel="stylesheet" href="'+f+window.V+'">');
 });
 </script>
+<script>document.addEventListener("gesturestart",function(e){e.preventDefault()});</script>
 </head>
 <body>
 <main class="card">
