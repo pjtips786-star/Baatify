@@ -206,7 +206,7 @@ a { text-decoration: none; color: inherit; }
 .anim-social { animation: socialBounce 2s ease-in-out infinite; transform-origin: center; }
 .anim-star { animation: starSpin 6s linear infinite; transform-origin: center; }
 
-/* ============ PAGE LAYOUT ============ */
+/* ============ PAGE ============ */
 .page {
   min-height: 100vh;
   display: flex;
@@ -244,6 +244,7 @@ nav {
   font-weight: 800;
   font-size: 1.25rem;
   color: var(--dark);
+  white-space: nowrap;
 }
 .logo-icon {
   width: 40px;
@@ -251,6 +252,7 @@ nav {
   position: relative;
   animation: heartbeat 3s ease-in-out infinite;
   filter: drop-shadow(0 4px 12px rgba(0,168,132,0.35));
+  flex-shrink: 0;
 }
 .logo-icon svg { width: 100%; height: 100%; display: block; }
 .logo-icon::before {
@@ -262,7 +264,11 @@ nav {
   animation: ringExpand 2.4s ease-out infinite;
   pointer-events: none;
 }
-.logo span { color: var(--primary); }
+.logo-text {
+  white-space: nowrap;
+  letter-spacing: -0.02em;
+}
+.logo-text span { color: var(--primary); }
 
 .nav-links {
   display: flex;
@@ -309,68 +315,70 @@ nav {
   display: block;
   border-radius: 20px;
   object-fit: cover;
+  min-height: 180px;
 }
 
-.banner-badge {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  padding: 8px 16px;
-  border-radius: 50px;
+/* ============ BADGES ROW ============ */
+.badge-row {
   display: flex;
+  gap: 10px;
+  padding: 4px 2px 0;
+  animation: fadeUp 0.7s ease backwards;
+  animation-delay: 0.3s;
+  flex-wrap: wrap;
+}
+
+.badge-pill {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  padding: 8px 14px;
+  border-radius: 50px;
   font-size: 0.72rem;
   font-weight: 700;
   color: var(--primary-dark);
-  box-shadow: 0 8px 24px rgba(0, 128, 105, 0.15);
+  box-shadow: 0 6px 20px rgba(0, 128, 105, 0.12);
   border: 1px solid rgba(255,255,255,0.9);
   animation: float 4s ease-in-out infinite;
-  z-index: 3;
+  position: relative;
+  overflow: hidden;
 }
-.banner-badge .dot {
+.badge-pill:nth-child(2) {
+  animation-delay: 1s;
+}
+.badge-pill::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+  animation: shine 3s infinite;
+}
+.badge-pill .dot {
   width: 7px;
   height: 7px;
   background: #25D366;
   border-radius: 50%;
   animation: pulse 1.5s infinite;
   box-shadow: 0 0 8px #25D366;
+  flex-shrink: 0;
 }
-
-.banner-card {
-  position: absolute;
-  bottom: 20px;
-  right: 20px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  padding: 10px 14px;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--primary-dark);
-  box-shadow: 0 8px 24px rgba(0, 128, 105, 0.15);
-  border: 1px solid rgba(255,255,255,0.9);
-  animation: float 5s ease-in-out infinite;
-  animation-delay: 1s;
-  z-index: 3;
-}
-.banner-card .ic {
-  width: 26px; height: 26px;
-  border-radius: 8px;
+.badge-pill .ic-mini {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
   background: var(--primary-light);
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
-.banner-card .ic svg {
-  width: 14px; height: 14px;
+.badge-pill .ic-mini svg {
+  width: 12px;
+  height: 12px;
   fill: var(--primary-dark);
   animation: shieldPulse 2s ease-in-out infinite;
   transform-origin: center;
@@ -399,7 +407,7 @@ nav {
   position: relative;
   overflow: hidden;
   animation: fadeUp 0.8s ease backwards;
-  animation-delay: 0.3s;
+  animation-delay: 0.4s;
 }
 
 .content::before {
@@ -410,42 +418,6 @@ nav {
   background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
   animation: shine 8s infinite;
   pointer-events: none;
-}
-
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: linear-gradient(135deg, rgba(217, 253, 211, 0.9), rgba(167, 243, 208, 0.7));
-  color: var(--primary-dark);
-  padding: 7px 14px;
-  border-radius: 50px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  margin-bottom: 16px;
-  width: fit-content;
-  animation: slideRight 0.7s ease backwards;
-  animation-delay: 0.4s;
-  box-shadow: 0 4px 16px rgba(0, 168, 132, 0.15);
-  border: 1px solid rgba(255,255,255,0.9);
-  position: relative;
-  overflow: hidden;
-}
-.badge::after {
-  content: '';
-  position: absolute;
-  top: 0; left: -100%;
-  width: 100%; height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
-  animation: shine 3s infinite;
-}
-.badge .dot {
-  width: 7px;
-  height: 7px;
-  background: #25D366;
-  border-radius: 50%;
-  animation: pulse 1.5s infinite;
-  box-shadow: 0 0 8px #25D366;
 }
 
 h1 {
@@ -489,7 +461,7 @@ h1 .highlight::after {
   z-index: 1;
 }
 
-/* ============ DOWNLOAD BUTTON WITH PROGRESS ============ */
+/* ============ DOWNLOAD BUTTON ============ */
 .buttons {
   display: flex;
   flex-direction: column;
@@ -532,7 +504,6 @@ h1 .highlight::after {
   50%      { box-shadow: 0 12px 32px rgba(0,168,132,0.45), 0 0 0 14px rgba(37,211,102,0); }
 }
 
-/* ✅ Progress bar fill */
 .progress-fill {
   position: absolute;
   top: 0;
@@ -600,10 +571,6 @@ h1 .highlight::after {
 .btn-primary.loading .spinner { display: block; }
 .btn-primary.done .btn-icon { display: none; }
 .btn-primary.done .spinner { display: none; }
-.btn-primary.done #btnText::before {
-  content: '✓';
-  margin-right: 8px;
-}
 
 .download-status {
   font-size: 0.8rem;
@@ -726,8 +693,8 @@ h1 .highlight::after {
   .nav-links { gap: 30px; }
   .nav-links a { font-size: 0.92rem; }
 
-  .banner-badge { padding: 9px 18px; font-size: 0.78rem; }
-  .banner-card { padding: 12px 16px; font-size: 0.76rem; }
+  .badge-row { padding: 6px 4px 0; }
+  .badge-pill { padding: 9px 16px; font-size: 0.76rem; }
 }
 
 @media (max-width: 380px) {
@@ -736,10 +703,7 @@ h1 .highlight::after {
   .logo-icon { width: 36px; height: 36px; }
   h1 { font-size: 1.5rem; }
   .content { padding: 18px 16px; }
-  .banner-badge { padding: 6px 12px; font-size: 0.65rem; top: 14px; left: 14px; }
-  .banner-card { padding: 8px 12px; font-size: 0.62rem; bottom: 14px; right: 14px; }
-  .banner-card .ic { width: 22px; height: 22px; }
-  .banner-card .ic svg { width: 12px; height: 12px; }
+  .badge-pill { padding: 6px 12px; font-size: 0.66rem; }
 }
 </style>
 </head>
@@ -783,7 +747,7 @@ h1 .highlight::after {
           </circle>
         </svg>
       </div>
-      Baa<span>tify</span>
+      <span class="logo-text">Baa<span>tify</span></span>
     </a>
     <ul class="nav-links">
       <li><a href="#features">Features</a></li>
@@ -795,27 +759,28 @@ h1 .highlight::after {
   <!-- ========== HERO ========== -->
   <div class="hero">
 
-    <!-- BANNER -->
+    <!-- ═══════════════════════════════════════════════
+         BANNER — AAPKI IMAGE (../assets/banner.png)
+         ═══════════════════════════════════════════════ -->
     <div class="hero-banner">
-      <div class="banner-badge">
-        <span class="dot"></span> Now Live
-      </div>
-      <div class="banner-card">
-        <div class="ic">
-          <svg viewBox="0 0 24 24"><path d="M18 8h-1V6a5 5 0 00-10 0v2H6a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V10a2 2 0 00-2-2zm-6 9a2 2 0 110-4 2 2 0 010 4zM9 8V6a3 3 0 016 0v2H9z"/></svg>
-        </div>
-        <div>Encrypted</div>
-      </div>
-      <!-- ✅ APNI BANNER IMAGE -->
       <img src="../assets/banner.png" alt="Baatify Banner">
     </div>
 
-    <!-- CONTENT -->
-    <div class="content">
-      <div class="badge">
-        <span class="dot"></span> Now Live on Android
+    <!-- BADGES ROW — IMAGE KE NEECHE -->
+    <div class="badge-row">
+      <div class="badge-pill">
+        <span class="dot"></span> Now Live
       </div>
+      <div class="badge-pill">
+        <div class="ic-mini">
+          <svg viewBox="0 0 24 24"><path d="M18 8h-1V6a5 5 0 00-10 0v2H6a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V10a2 2 0 00-2-2zm-6 9a2 2 0 110-4 2 2 0 010 4zM9 8V6a3 3 0 016 0v2H9z"/></svg>
+        </div>
+        End-to-End Encrypted
+      </div>
+    </div>
 
+    <!-- CONTENT CARD -->
+    <div class="content">
       <h1>Jahan <span class="highlight">Baatein</span><br>Dil Se Hoti Hain 💬</h1>
 
       <p class="tagline">
@@ -823,10 +788,11 @@ h1 .highlight::after {
       </p>
 
       <!-- ═══════════════════════════════════════════════
-           DOWNLOAD BUTTON WITH PROGRESS BAR
+           DOWNLOAD BUTTON — AAPKA APK LINK
            ═══════════════════════════════════════════════ -->
       <div class="buttons">
-        <button id="downloadBtn" class="btn-primary" data-apk="https://github.com/pjtips786-star/Baatify/releases/download/App/app-debug.apk">
+        <button id="downloadBtn" class="btn-primary" 
+                data-apk="https://github.com/pjtips786-star/Baatify/releases/download/App/app-debug.apk">
           <div class="progress-fill" id="progressFill"></div>
           <svg class="btn-icon" viewBox="0 0 24 24"><path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/></svg>
           <span class="spinner"></span>
@@ -835,7 +801,7 @@ h1 .highlight::after {
 
         <span id="downloadStatus" class="download-status">
           <svg viewBox="0 0 24 24"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>
-          <span id="statusText">Ready to download</span>
+          <span id="statusText">Ready</span>
         </span>
       </div>
 
@@ -879,7 +845,7 @@ h1 .highlight::after {
 </div>
 
 <!-- ══════════════════════════════════════════════════════════
-     DOWNLOAD SCRIPT — Background download with progress
+     DOWNLOAD SCRIPT — Direct download from GitHub release
      ══════════════════════════════════════════════════════════ -->
 <script>
 const downloadBtn = document.getElementById('downloadBtn');
@@ -888,11 +854,13 @@ const progressFill = document.getElementById('progressFill');
 const downloadStatus = document.getElementById('downloadStatus');
 const statusText = document.getElementById('statusText');
 
-downloadBtn.addEventListener('click', async function (e) {
-  e.preventDefault();
+let isDownloading = false;
 
-  // Prevent double click
-  if (this.classList.contains('loading') || this.classList.contains('done')) return;
+downloadBtn.addEventListener('click', function (e) {
+  e.preventDefault();
+  
+  if (isDownloading) return;
+  isDownloading = true;
 
   const apkUrl = this.dataset.apk;
 
@@ -901,106 +869,66 @@ downloadBtn.addEventListener('click', async function (e) {
   btnText.textContent = 'Starting...';
   progressFill.style.width = '0%';
   downloadStatus.classList.add('show');
-  statusText.textContent = 'Connecting to server...';
+  statusText.textContent = 'Preparing download...';
 
-  try {
-    // STEP 2: Fetch APK in background (NO redirect!)
-    const response = await fetch(apkUrl, {
-      method: 'GET',
-      mode: 'cors',
-      cache: 'no-store'
-    });
+  // STEP 2: Visual progress
+  let progress = 0;
+  const progressInterval = setInterval(() => {
+    progress += Math.random() * 10 + 3;
+    if (progress > 92) progress = 92;
+    progressFill.style.width = progress + '%';
+    btnText.textContent = Math.round(progress) + '%';
+    statusText.textContent = 'Downloading... ' + Math.round(progress) + '%';
+  }, 250);
 
-    if (!response.ok) throw new Error('Network response failed');
+  // STEP 3: Trigger download via hidden iframe (bypasses CORS)
+  const iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = 'none';
+  iframe.src = apkUrl;
+  document.body.appendChild(iframe);
 
-    statusText.textContent = 'Downloading Baatify...';
-
-    // STEP 3: Get file size for progress
-    const contentLength = response.headers.get('content-length');
-    const total = contentLength ? parseInt(contentLength, 10) : 0;
-    let loaded = 0;
-    const chunks = [];
-
-    // STEP 4: Read stream chunk by chunk
-    const reader = response.body.getReader();
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      chunks.push(value);
-      loaded += value.length;
-
-      // Update progress
-      if (total > 0) {
-        const percent = Math.round((loaded / total) * 100);
-        btnText.textContent = percent + '%';
-        progressFill.style.width = percent + '%';
-        statusText.textContent = 'Downloading... ' + percent + '%';
-      } else {
-        const mb = (loaded / (1024 * 1024)).toFixed(1);
-        btnText.textContent = mb + ' MB';
-        statusText.textContent = 'Downloading... ' + mb + ' MB';
-        // Fake progress for unknown size
-        progressFill.style.width = Math.min(90, loaded / 50000) + '%';
-      }
-    }
-
-    // STEP 5: Combine chunks into a Blob
-    const blob = new Blob(chunks, { type: 'application/vnd.android.package-archive' });
-
-    // STEP 6: Trigger download (stays on same page!)
-    const url = window.URL.createObjectURL(blob);
+  // STEP 4: Fallback — also trigger direct anchor click
+  setTimeout(() => {
     const link = document.createElement('a');
-    link.href = url;
+    link.href = apkUrl;
     link.download = 'baatify.apk';
+    link.rel = 'noopener noreferrer';
     link.style.display = 'none';
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
-
-    setTimeout(() => window.URL.revokeObjectURL(url), 1000);
-
-    // STEP 7: Success state
-    progressFill.style.width = '100%';
-    this.classList.remove('loading');
-    this.classList.add('done');
-    btnText.textContent = 'Download Started';
-    statusText.textContent = 'Check your downloads folder!';
-
-    // STEP 8: Reset after 5 seconds
     setTimeout(() => {
-      this.classList.remove('done');
+      if (document.body.contains(link)) document.body.removeChild(link);
+    }, 200);
+  }, 600);
+
+  // STEP 5: Complete state after 3 seconds
+  setTimeout(() => {
+    clearInterval(progressInterval);
+    progressFill.style.width = '100%';
+    btnText.textContent = 'Download Started';
+    statusText.textContent = 'Check your Downloads folder!';
+    
+    downloadBtn.classList.remove('loading');
+    downloadBtn.classList.add('done');
+
+    // STEP 6: Reset after 6 seconds
+    setTimeout(() => {
+      downloadBtn.classList.remove('done');
       btnText.textContent = 'Download APK';
       progressFill.style.width = '0%';
       downloadStatus.classList.remove('show');
-    }, 5000);
+      statusText.textContent = 'Ready';
+      isDownloading = false;
+    }, 6000);
+  }, 3000);
 
-  } catch (err) {
-    // ❌ Fallback — if CORS blocks fetch
-    console.warn('Direct fetch failed, using fallback:', err);
-
-    // Fallback: hidden iframe trick (stays on page)
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = apkUrl;
-    document.body.appendChild(iframe);
-    setTimeout(() => document.body.removeChild(iframe), 10000);
-
-    // Show success
-    progressFill.style.width = '100%';
-    this.classList.remove('loading');
-    this.classList.add('done');
-    btnText.textContent = 'Download Started';
-    statusText.textContent = 'Check your downloads folder!';
-
-    setTimeout(() => {
-      this.classList.remove('done');
-      btnText.textContent = 'Download APK';
-      progressFill.style.width = '0%';
-      downloadStatus.classList.remove('show');
-    }, 5000);
-  }
+  // Cleanup iframe
+  setTimeout(() => {
+    if (document.body.contains(iframe)) document.body.removeChild(iframe);
+  }, 15000);
 });
 </script>
 
