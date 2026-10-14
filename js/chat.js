@@ -126,6 +126,7 @@ async function boot(u){
     const qa=new URLSearchParams(location.search).get("answer");
   if(qa)window.__autoAnswer=qa;
   initCalls({uid:me.uid,name:me.name,photo:me.photo||""});
+  import("./celebrate.js"+V).then(m=>m.check(me.uid)).catch(()=>{});
   
   if(me.uid===OWNER_UID)show("adm",1);
   try{if(window.Android&&Android.setUser){Android.setUser(me.uid);Android.requestToken()}}catch(e){}
