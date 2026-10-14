@@ -14,6 +14,7 @@ document.write('<link rel="stylesheet" href="css/admin.css'+window.V+'">');
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
   <defs>
+      <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></symbol>
   <symbol id="i-left" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></symbol>
     <symbol id="i-right" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></symbol>
     <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></symbol>
@@ -49,6 +50,7 @@ document.write('<link rel="stylesheet" href="css/admin.css'+window.V+'">');
     <button class="tb on" data-t="ov" type="button"><svg class="i"><use href="#i-chart"/></svg><span>Overview</span></button>
     <button class="tb" data-t="ct" type="button"><svg class="i"><use href="#i-chat"/></svg><span>Chat tools</span></button>
     <button class="tb" data-t="gl" type="button"><svg class="i"><use href="#i-image"/></svg><span>Gallery</span></button>
+        <button class="tb" data-t="ev" type="button"><svg class="i"><use href="#i-calendar"/></svg><span>Events</span></button>
   </nav>
 
   <main>
@@ -114,6 +116,7 @@ document.write('<link rel="stylesheet" href="css/admin.css'+window.V+'">');
       <p id="gs" class="mut"></p>
       <div id="gg" class="gal"></div>
     </section>
+    <section id="t-ev" class="hide"></section>
   </main>
 </div>
 
