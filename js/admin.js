@@ -60,10 +60,10 @@ $("chatSel").onchange=()=>{cur=$("chatSel").value;resetCaches();refresh()};
 document.querySelectorAll(".tb").forEach(b=>b.onclick=()=>{
   tab=b.dataset.t;
   document.querySelectorAll(".tb").forEach(x=>x.classList.toggle("on",x===b));
-  ["ov","ct","gl"].forEach(t=>show("t-"+t,t===tab));
+    ["ov","ct","gl","ev"].forEach(t=>show("t-"+t,t===tab));
   refresh();
 });
-function refresh(){if(tab==="ov")overview();else if(tab==="gl")gallery()}
+function refresh(){if(tab==="ov")overview();else if(tab==="gl")gallery();else if(tab==="ev")loadEvents()}
 
 /* ---------- Overview ---------- */
 async function overview(){
@@ -396,3 +396,185 @@ $("vdl").onclick=async()=>{
     setTimeout(()=>URL.revokeObjectURL(a.href),8000);toast("Download started");
   }catch(e){toast("Download failed")}
 };
+/* ---------- Events tab (celebrations) ---------- */
+const CLD="dzbqkvysn",PRE="Baatify";
+const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+let evs=[],evUid="";
+const istNow=()=>{const t=new Date(Date.now()+19800000);return{y:t.getUTCFullYear(),m:t.getUTCMonth()+1,d:t.getUTCDate()}};
+const dimE=(y,m)=>new Date(Date.UTC(y,m,0)).getUTCDate();
+const ordE=d=>d+(d%100>=11&&d%100<=13?"th":(["th","st","nd","rd"][d%10]||"th"));
+const slug=s=>String(s||"event").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,24)||"event";
+function E(tag,cls,txt){const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e}
+
+const ruleText=ev=>ev.repeat==="yearly"?"Every year \u00b7 "+ev.day+" "+MON[(ev.month||1)-1]
+  :ev.repeat==="monthly"?"Every month \u00b7 "+ordE(ev.day):"Once \u00b7 "+ev.day+" "+MON[(ev.month||1)-1]+" "+ev.year;
+
+function nextDate(ev){
+  const n=istNow(),T=Date.UTC(n.y,n.m-1,n.d),cand=(y,m,d)=>Date.UTC(y,m-1,Math.min(d,dimE(y,m)));
+  let best=null;
+  if(ev.repeat==="yearly"){best=cand(n.y,ev.month,ev.day);if(best<T)best=cand(n.y+1,ev.month,ev.day)}
+  else if(ev.repeat==="monthly"){
+    for(let k=0;k<26&&best===null;k++){
+      const y=n.y+Math.floor((n.m-1+k)/12),m=(n.m-1+k)%12+1,t=cand(y,m,ev.day);
+      if(t>=T&&!(ev.skipMonths||[]).includes(m))best=t;
+    }
+  }else{const t=Date.UTC(ev.year||n.y,(ev.month||1)-1,ev.day||1);if(t>=T)best=t}
+  if(best===null)return "past";
+  const d=new Date(best),days=Math.round((best-T)/864e5);
+  return d.getUTCDate()+" "+MON[d.getUTCMonth()]+" "+d.getUTCFullYear()+(days===0?" (today)":days===1?" (tomorrow)":" ("+days+" days)");
+}
+
+$("t-ev").innerHTML=
+ '<div class="card"><h3>Events</h3><p class="mut" id="evh"></p><div id="evl"></div></div>'+
+ '<div class="card"><h3>Add event</h3><div class="row wr"><button class="btn sm" data-k="anniversary" type="button">Anniversary</button><button class="btn sm" data-k="monthly" type="button">Monthsary</button><button class="btn sm" data-k="birthday" type="button">Birthday</button><button class="btn sm ghost" data-k="custom" type="button">Custom</button></div>'+
+ '<label class="chk"><input type="checkbox" id="evm" checked> Also give me the chat theme on these days</label></div>';
+$("t-ev").querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>ed(-1,b.dataset.k));
+
+async function loadEvents(){
+  if(!cur)return;
+  const uid=other(curChat()),box=$("evl");box.textContent="Loading\u2026";
+  try{
+    const s=await getDoc(doc(db,"celebrations",uid));
+    evs=s.exists()?JSON.parse(s.data().json||"[]"):[];
+  }catch(e){box.textContent="Could not load";return}
+  evUid=uid;renderEv();
+}
+
+function renderEv(){
+  const box=$("evl");box.textContent="";
+  $("evh").textContent="For "+pname(curChat())+" \u00b7 "+evs.length+" event"+(evs.length===1?"":"s");
+  if(!evs.length)box.appendChild(E("p","mut","No events yet. Add one below."));
+  evs.forEach((ev,i)=>{
+    const c=E("div","evc"+(ev.active===false?" off":""));
+    c.appendChild(E("b",null,ev.title||"(untitled)"));
+    c.appendChild(E("small",null,ruleText(ev)));
+    c.appendChild(E("small","nx","Next: "+nextDate(ev)));
+    const tg=[];
+    if(ev.active===false)tg.push("Off");if(ev.surprise===false)tg.push("Theme only");
+    if(ev.gift)tg.push("Gift");if(ev.photos&&ev.photos.length)tg.push(ev.photos.length+" photos");
+    if(tg.length)c.appendChild(E("small",null,tg.join(" \u00b7 ")));
+    const r=E("div","row wr");
+    [["Edit",()=>ed(i)],["Preview",()=>{location.href="chat.html?cel="+evUid+"&n="+i+"&theme=1"}],["Copy",()=>dup(i)],["Delete",()=>del(i)]].forEach(a=>{
+      const b=E("button","btn sm ghost",a[0]);b.type="button";b.onclick=a[1];r.appendChild(b);
+    });
+    c.appendChild(r);box.appendChild(c);
+  });
+}
+
+async function persist(){
+  await setDoc(doc(db,"celebrations",evUid),{json:JSON.stringify(evs),updated:Timestamp.now()});
+  if($("evm").checked&&evUid!==me.uid){                       // tumhare account ke liye sirf theme
+    const th=evs.map(e=>({id:e.id,title:e.title,repeat:e.repeat,month:e.month,day:e.day,year:e.year,start:e.start,counterLabel:e.counterLabel,priority:e.priority,skipMonths:e.skipMonths,active:e.active,chatTheme:e.chatTheme,surprise:false}));
+    await setDoc(doc(db,"celebrations",me.uid),{json:JSON.stringify(th),updated:Timestamp.now()});
+  }
+}
+async function saveEvs(){try{await persist();renderEv();toast("Saved")}catch(e){toast("Error: "+(e.code||e.message))}}
+function dup(i){const e=JSON.parse(JSON.stringify(evs[i]));e.id=slug(e.title)+"-"+Date.now().toString(36);e.title+=" (copy)";evs.splice(i+1,0,e);saveEvs()}
+function del(i){if(!confirm('Delete "'+evs[i].title+'"?'))return;evs.splice(i,1);saveEvs()}
+
+function newEv(kind){
+  const f=evs[0]||{},n=istNow();
+  const t={id:"",title:"",name:f.name||"",repeat:"none",month:n.m,day:n.d,year:n.y,start:f.start||"",counterLabel:"",priority:5,
+    effects:["confetti","petals"],chatTheme:true,surprise:true,active:true,letter:"",messages:[],photos:[],gift:null,skipMonths:[]};
+  if(kind==="anniversary")Object.assign(t,{title:"Happy Anniversary",repeat:"yearly",priority:1,effects:["fireworks","confetti","petals"]});
+  if(kind==="monthly")Object.assign(t,{title:"Happy Monthsary",repeat:"monthly"});
+  if(kind==="birthday")Object.assign(t,{title:"Happy Birthday",repeat:"yearly",priority:2,counterLabel:"ki zindagi",start:"",effects:["fireworks","confetti","petals"]});
+  if((kind==="anniversary"||kind==="monthly")&&/^\d{4}-\d\d-\d\d$/.test(t.start)){t.month=+t.start.slice(5,7);t.day=+t.start.slice(8)}
+  return t;
+}
+
+function evShrink(f,max){
+  return new Promise((res,rej)=>{
+    const i=new Image();
+    i.onload=()=>{const s=Math.min(1,max/Math.max(i.width,i.height)),c=document.createElement("canvas");c.width=i.width*s;c.height=i.height*s;c.getContext("2d").drawImage(i,0,0,c.width,c.height);c.toBlob(res,"image/jpeg",.85)};
+    i.onerror=rej;i.src=URL.createObjectURL(f);
+  });
+}
+async function upImg(f){
+  const fd=new FormData();fd.append("file",await evShrink(f,1600),"p.jpg");fd.append("upload_preset",PRE);
+  const j=await (await fetch("https://api.cloudinary.com/v1_1/"+CLD+"/image/upload",{method:"POST",body:fd})).json();
+  if(!j.secure_url)throw new Error((j.error&&j.error.message)||"upload failed");
+  return j.secure_url;
+}
+
+function ed(idx,kind){
+  const isNew=idx<0,ev=isNew?newEv(kind):JSON.parse(JSON.stringify(evs[idx]));
+  const g=ev.gift||{},ph=(ev.photos||[]).map(p=>Object.assign({},p));
+  const w=E("div","evw");w.id="evw";
+  const mon=MON.map((m,i)=>'<option value="'+(i+1)+'">'+m+'</option>').join("");
+  w.innerHTML=
+   '<div class="eh"><button type="button" id="e_x" aria-label="Close">'+ico("x")+'</button><b>'+(isNew?"New event":"Edit event")+'</b><button type="button" class="btn sm" id="e_s">Save</button></div><div class="eb">'+
+   '<label class="fl"><span>Title</span><input id="e_title" maxlength="60"></label>'+
+   '<label class="fl"><span>Name shown on screen</span><input id="e_name" maxlength="40"></label>'+
+   '<label class="fl"><span>Repeat</span><select id="e_rep"><option value="yearly">Every year</option><option value="monthly">Every month</option><option value="none">Once</option></select></label>'+
+   '<div class="row"><label class="fl" id="e_mw"><span>Month</span><select id="e_mon">'+mon+'</select></label><label class="fl"><span>Day</span><input id="e_day" type="number" min="1" max="31"></label><label class="fl" id="e_yw"><span>Year</span><input id="e_yr" type="number" min="2024" max="2100"></label></div>'+
+   '<label class="fl"><span>Skip months (numbers, e.g. 5)</span><input id="e_skip" placeholder="optional"></label>'+
+   '<div class="row"><label class="fl"><span>Counter start date</span><input id="e_start" type="date"></label><label class="fl"><span>Counter label</span><input id="e_lab" placeholder="saath"></label></div>'+
+   '<label class="fl"><span>Letter</span><textarea id="e_let" rows="8"></textarea></label>'+
+   '<label class="fl"><span>Rotating messages (one per line, used when the letter is empty)</span><textarea id="e_msg" rows="4"></textarea></label>'+
+   '<div class="fl"><span>Photos</span><input id="e_pf" type="file" accept="image/*" multiple><div id="e_ph"></div></div>'+
+   '<div class="fl"><span>Effects</span><div class="chs"><label><input type="checkbox" id="e_fw"> Fireworks</label><label><input type="checkbox" id="e_cf"> Confetti</label><label><input type="checkbox" id="e_pt"> Petals</label></div></div>'+
+   '<div class="chs"><label><input type="checkbox" id="e_act"> Active</label><label><input type="checkbox" id="e_sur"> Surprise screen</label><label><input type="checkbox" id="e_th"> Chat theme</label></div>'+
+   '<label class="fl"><span>Priority (smaller shows first)</span><input id="e_pri" type="number" min="1" max="9"></label>'+
+   '<label class="fl"><span>Gift</span><select id="e_gt"><option value="">None</option><option value="card">Gift card</option><option value="coupon">Coupon</option></select></label><div id="e_g" class="eb" style="padding:0"></div></div>';
+  document.body.appendChild(w);
+
+  const v=(id,x)=>{$(id).value=x==null?"":x},c=(id,x)=>{$(id).checked=!!x};
+  v("e_title",ev.title);v("e_name",ev.name);v("e_rep",ev.repeat);v("e_mon",ev.month||1);v("e_day",ev.day);v("e_yr",ev.year);
+  v("e_skip",(ev.skipMonths||[]).join(","));v("e_start",ev.start);v("e_lab",ev.counterLabel);v("e_let",ev.letter);v("e_msg",(ev.messages||[]).join("\n"));
+  c("e_fw",(ev.effects||[]).includes("fireworks"));c("e_cf",(ev.effects||[]).includes("confetti"));c("e_pt",(ev.effects||[]).includes("petals"));
+  c("e_act",ev.active!==false);c("e_sur",ev.surprise!==false);c("e_th",ev.chatTheme!==false);v("e_pri",ev.priority||5);v("e_gt",g.type||"");
+
+  const rule=()=>{const r=$("e_rep").value;$("e_mw").style.display=r==="monthly"?"none":"";$("e_yw").style.display=r==="none"?"":"none"};
+  $("e_rep").onchange=rule;rule();
+
+  const GF={card:[["brand","Brand"],["amount","Amount"],["note","Note"],["code","Code"],["pin","PIN"],["expires","Valid till"],["link","Redeem link (https://...)"],["linkText","Button text"]],
+            coupon:[["title","Coupon title"],["note","Note"],["terms","Terms"]]},GC=[["envelopeText","Text above envelope"],["heading","Heading on card"]];
+  const gf=()=>{
+    const t=$("e_gt").value,box=$("e_g");box.textContent="";
+    if(!t)return;
+    GC.concat(GF[t]).forEach(a=>{const lb=E("label","fl"),i=E("input");i.dataset.g=a[0];i.value=g[a[0]]||"";lb.append(E("span",null,a[1]),i);box.appendChild(lb)});
+  };
+  $("e_gt").onchange=gf;gf();
+
+  const rph=()=>{
+    const box=$("e_ph");box.textContent="";
+    ph.forEach((p,i)=>{
+      const r=E("div","pr"),im=new Image();im.alt="";im.src=p.url.replace("/upload/","/upload/w_120,h_120,c_fill/");
+      const cap=E("input"),dt=E("input"),col=E("div","pc2"),x=E("button",null,"\u2715");
+      cap.placeholder="Caption";cap.value=p.caption||"";cap.oninput=()=>{p.caption=cap.value};
+      dt.placeholder="Date (e.g. 22 May 2024)";dt.value=p.date||"";dt.oninput=()=>{p.date=dt.value};
+      x.type="button";x.onclick=()=>{ph.splice(i,1);rph()};
+      col.append(cap,dt);r.append(im,col,x);box.appendChild(r);
+    });
+  };rph();
+
+  $("e_pf").onchange=async()=>{
+    const fs=[...$("e_pf").files];$("e_pf").value="";
+    for(let i=0;i<fs.length;i++){
+      toast("Uploading "+(i+1)+"/"+fs.length+"\u2026");
+      try{ph.push({url:await upImg(fs[i]),caption:"",date:""});rph()}catch(e){toast("Upload failed: "+(e.message||e));return}
+    }
+    if(fs.length)toast("Photos added");
+  };
+
+  const close=()=>w.remove();
+  $("e_x").onclick=close;
+  $("e_s").onclick=()=>{
+    const o={id:ev.id,title:$("e_title").value.trim(),name:$("e_name").value.trim(),repeat:$("e_rep").value,
+      day:+$("e_day").value,priority:+$("e_pri").value||5,start:$("e_start").value,counterLabel:$("e_lab").value.trim(),
+      letter:$("e_let").value.trim(),messages:$("e_msg").value.split("\n").map(s=>s.trim()).filter(Boolean),photos:ph,
+      effects:[["e_fw","fireworks"],["e_cf","confetti"],["e_pt","petals"]].filter(x=>$(x[0]).checked).map(x=>x[1]),
+      active:$("e_act").checked,surprise:$("e_sur").checked,chatTheme:$("e_th").checked,
+      skipMonths:$("e_skip").value.split(",").map(s=>+s.trim()).filter(n=>n>=1&&n<=12)};
+    if(o.repeat!=="monthly")o.month=+$("e_mon").value;
+    if(o.repeat==="none")o.year=+$("e_yr").value;
+    if(!o.title)return toast("Enter a title");
+    if(!(o.day>=1&&o.day<=31))return toast("Enter a valid day");
+    if(o.repeat==="none"&&!o.year)return toast("Enter the year");
+    const t=$("e_gt").value;
+    if(t){o.gift={type:t};w.querySelectorAll("#e_g input").forEach(i=>{if(i.value.trim())o.gift[i.dataset.g]=i.value.trim()})}
+    if(isNew){o.id=slug(o.title)+"-"+Date.now().toString(36);evs.push(o)}else evs[idx]=o;
+    saveEvs().then(close);
+  };
+}
