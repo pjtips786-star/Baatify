@@ -223,7 +223,7 @@ function play(ev,preview,n){
     const steps=[hero];
     if(Array.isArray(ev.photos)&&ev.photos.length)steps.push(photosStep);
     if(textOf(ev,n))steps.push(letterStep);
-    if(ev.gift&&window.__celGift)steps.push(window.__celGift);      // Part 2: band lifafa
+    if(ev.gift)steps.push(giftStep);
     let i=0,clean=()=>{},closed=false;
     const finish=()=>{
       if(closed)return;closed=true;clean();stop();el.remove();
@@ -240,4 +240,94 @@ function play(ev,preview,n){
     el.querySelector(".cx").onclick=finish;
     go();
   });
+}
+/* ---------- Part 2: band lifafa (digital tohfa) ---------- */
+function gcss(){
+  if(document.getElementById("celcss2"))return;
+  const s=document.createElement("style");s.id="celcss2";
+  s.textContent=`
+.gh{font-family:"Great Vibes","Brush Script MT",cursive;font-size:clamp(34px,11vw,52px);color:#ffe3ee;text-shadow:0 0 16px rgba(255,79,139,.8)}
+.gt{font-style:italic;font-size:18px;color:#ffd1e1;animation:celp 1.6s ease-in-out infinite}
+@keyframes celp{50%{opacity:.45}}
+.env{position:relative;width:min(80vw,320px);height:min(52vw,210px);border:0;padding:0;background:none;cursor:pointer;perspective:700px;animation:celfl 3s ease-in-out infinite;transition:opacity .4s .6s}
+@keyframes celfl{50%{transform:translateY(-8px)}}
+.env i{position:absolute;display:block}
+.eb{inset:0;background:#c43a74;border-radius:8px}
+.ef{inset:0;z-index:2;background:linear-gradient(135deg,#ffb3cf,#ff6fa3);clip-path:polygon(0 0,50% 52%,100% 0,100% 100%,0 100%);border-radius:8px}
+.eflap{left:0;right:0;top:0;height:58%;z-index:3;background:linear-gradient(#ff8fb3,#e0558c);clip-path:polygon(0 0,100% 0,50% 100%);transform-origin:top;transition:transform .6s ease,z-index 0s .3s}
+.seal{left:50%;top:44%;width:44px;height:44px;margin:-22px 0 0 -22px;z-index:4;border-radius:50%;background:#f6d28a;color:#b8286a;font-style:normal;font-size:24px;line-height:44px;text-align:center;box-shadow:0 3px 8px rgba(0,0,0,.35);transition:opacity .3s}
+.env.open{animation:none;opacity:0}
+.env.open .eflap{transform:rotateX(180deg);z-index:1}
+.env.open .seal{opacity:0}
+.gcard{width:min(86vw,360px);border-radius:18px;padding:22px 20px;text-align:center;background:linear-gradient(145deg,#ffd9e6,#ff8fb3 55%,#d63b7c);color:#4a0f35;box-shadow:0 14px 40px rgba(0,0,0,.45);display:grid;gap:10px;animation:celpop .6s cubic-bezier(.2,1.3,.4,1)}
+@keyframes celpop{from{opacity:0;transform:scale(.7) translateY(30px)}}
+.gcard.cp{border:2px dashed rgba(74,15,53,.5)}
+.gb{font-size:26px;font-weight:700}
+.ga{font-size:44px;font-weight:700;line-height:1}
+.gn{font-size:18px;line-height:1.4}
+.gx{font-size:14px;opacity:.8}
+.gcode{display:flex;align-items:center;justify-content:space-between;gap:10px;background:rgba(255,255,255,.55);border-radius:12px;padding:10px 12px}
+.gcode b{font:700 18px/1.2 ui-monospace,Menlo,Consolas,monospace;letter-spacing:.06em;word-break:break-all;user-select:all;-webkit-user-select:all;text-align:left}
+.gcode button{flex:none;border:0;border-radius:18px;padding:7px 14px;background:#b8286a;color:#fff;font:600 14px system-ui,sans-serif;cursor:pointer}
+.gl{display:inline-block;justify-self:center;border-radius:24px;padding:10px 26px;background:#4a0f35;color:#fff;text-decoration:none;font-weight:700}`;
+  document.head.appendChild(s);
+}
+
+async function copyText(t){
+  try{await navigator.clipboard.writeText(t);return true}
+  catch(e){
+    const a=document.createElement("textarea");a.value=t;a.style.cssText="position:fixed;opacity:0";
+    document.body.appendChild(a);a.select();
+    let ok=false;try{ok=document.execCommand("copy")}catch(x){}
+    a.remove();return ok;
+  }
+}
+
+function giftStep(ev,n,b,next,last){
+  gcss();
+  const g=ev.gift||{};
+  b.innerHTML='<div class="gh"></div><button class="env" type="button" aria-label="Open the envelope"><i class="eb"></i><i class="eflap"></i><i class="ef"></i><i class="seal">\u2665</i></button><div class="gt">Tap karke kholo</div>';
+  const gh=b.querySelector(".gh"),env=b.querySelector(".env"),gt=b.querySelector(".gt");
+  gh.textContent=g.envelopeText||"Ek chhota sa tohfa";
+  let tm=0,opened=false;
+
+  const showCard=()=>{
+    gh.textContent=g.heading||"Tumhare liye";
+    env.remove();gt.remove();
+    const c=document.createElement("div");c.className="gcard"+(g.type==="coupon"?" cp":"");
+    const add=(cls,txt)=>{const d=document.createElement("div");d.className=cls;d.textContent=txt;c.appendChild(d)};
+    if(g.type==="coupon"){
+      add("gb",g.title||"Coupon");
+      if(g.note)add("gn",g.note);
+      if(g.terms)add("gx",g.terms);
+    }else{
+      add("gb",g.brand||"Gift Card");
+      if(g.amount)add("ga",g.amount);
+      if(g.note)add("gn",g.note);
+      if(g.code){
+        const row=document.createElement("div");row.className="gcode";
+        const code=document.createElement("b");code.textContent=g.code;
+        const cb=document.createElement("button");cb.type="button";cb.textContent="Copy";
+        cb.onclick=async()=>{cb.textContent=(await copyText(g.code))?"Copied \u2713":"Select & copy";setTimeout(()=>{cb.textContent="Copy"},2000)};
+        row.append(code,cb);c.appendChild(row);
+      }
+      if(g.pin)add("gx","PIN: "+g.pin);
+      if(g.expires)add("gx","Valid till "+g.expires);
+      if(g.link&&/^https?:\/\//i.test(g.link)){
+        const a=document.createElement("a");a.className="gl";a.href=g.link;a.target="_blank";a.rel="noopener noreferrer";
+        a.textContent=g.linkText||"Redeem";c.appendChild(a);
+      }
+    }
+    b.insertBefore(c,gh.nextSibling);
+    const btn=document.createElement("button");btn.className="cbn";btn.type="button";
+    btn.textContent=last?"Close":"Aage \u2665";btn.onclick=next;b.appendChild(btn);
+  };
+
+  env.onclick=()=>{
+    if(opened)return;opened=true;
+    env.classList.add("open");gt.textContent="";
+    if(navigator.vibrate)navigator.vibrate(30);
+    tm=setTimeout(showCard,1000);
+  };
+  return()=>clearTimeout(tm);
 }
