@@ -61,25 +61,55 @@ async function load(uid){
   return Array.isArray(j)?j:[];
 }
 
+const TH="bt_cel_th";
+
+function themeOf(t,n){
+  const c=counter(t,n);
+  return{id:t.id||t.title,theme:t.theme||"rose",banner:t.banner||((t.title||"Celebration")+" \u2764"),sub:c?c.main:""};
+}
+function themeFor(evs,n){
+  const t=evs.filter(e=>matches(e,n)&&e.chatTheme!==false)
+             .sort((a,b)=>(a.priority||5)-(b.priority||5))[0];
+  return t?themeOf(t,n):null;
+}
+function readTh(uid,day){
+  try{const o=JSON.parse(localStorage.getItem(TH)||"null");if(o&&o.day===day&&o.uid===uid)return o.th}catch(e){}
+  return null;
+}
+function armMidnight(uid){
+  if(window.__celMid)return;
+  const t=new Date(Date.now()+IST);
+  const next=Date.UTC(t.getUTCFullYear(),t.getUTCMonth(),t.getUTCDate()+1)-IST;
+  window.__celMid=setTimeout(()=>{window.__celMid=0;showTheme(null);check(uid)},next-Date.now()+4000);
+}
+
 export async function check(uid){
   const q=new URLSearchParams(location.search),pv=q.get("cel");
-  if(pv){                                   // admin preview: ?cel=<uid>&n=0
+  if(pv){                                   // admin preview: ?cel=<uid>&n=0  (&theme=1 se theme bhi)
     try{
       const evs=await load(pv),ev=evs[+(q.get("n")||0)];
-      if(ev)await play(ev,true,ist());
+      if(ev){
+        if(q.get("theme"))showTheme(themeOf(ev,ist()));
+        await play(ev,true,ist());
+      }
     }catch(e){}
     return;
   }
   const n=ist(),day=ymd(n);
+  showTheme(readTh(uid,day));                // pehle cache se: koi read nahi
+  armMidnight(uid);
   let ch=null;try{ch=JSON.parse(localStorage.getItem("bt_cel")||"null")}catch(e){}
-  if(ch&&ch.day===day&&ch.uid===uid&&!ch.pending)return;      // aaj kuch nahi: koi read nahi
-  let evs;try{evs=await load(uid)}catch(e){return}              // offline: baad mein
+  if(ch&&ch.day===day&&ch.uid===uid&&!ch.pending&&ch.th)return;      // aaj ka kaam ho chuka
+  let evs;try{evs=await load(uid)}catch(e){return}                     // offline: baad mein
+  const th=themeFor(evs,n);
+  try{localStorage.setItem(TH,JSON.stringify({day,uid,th}))}catch(e){}
+  showTheme(th);
   const seen=seenSet();
-  const due=evs.filter(e=>matches(e,n)&&!seen.has((e.id||e.title)+"|"+day))
+  const due=evs.filter(e=>e.surprise!==false&&matches(e,n)&&!seen.has((e.id||e.title)+"|"+day))
                .sort((a,b)=>(a.priority||5)-(b.priority||5));
-  try{localStorage.setItem("bt_cel",JSON.stringify({day,uid,pending:due.length>0}))}catch(e){}
+  try{localStorage.setItem("bt_cel",JSON.stringify({day,uid,pending:due.length>0,th:1}))}catch(e){}
   for(const ev of due)await play(ev,false,n);
-  try{localStorage.setItem("bt_cel",JSON.stringify({day,uid,pending:false}))}catch(e){}
+  try{localStorage.setItem("bt_cel",JSON.stringify({day,uid,pending:false,th:1}))}catch(e){}
 }
 
 /* ---------- effects: aatishbaazi, confetti, hearts, patiyan ---------- */
@@ -330,4 +360,49 @@ function giftStep(ev,n,b,next,last){
     tm=setTimeout(showCard,1000);
   };
   return()=>clearTimeout(tm);
+}
+/* ---------- Part 3: chat ka gulabi hearts theme ---------- */
+function tcss(){
+  if(document.getElementById("celcss3"))return;
+  const s=document.createElement("style");s.id="celcss3";
+  s.textContent=`
+html[data-cel="rose"]{--g:#ff4f8b;--side:#190812;--panel:#2b1020;--line:#3d1a2d;--out:#8f2456;--in:#2f1424;--chat:#1d0a15;--dot:rgba(255,120,170,.10)}
+@media(prefers-color-scheme:light){html[data-cel="rose"]{--side:#fff7fa;--panel:#ffe6ef;--line:#f6cfdc;--out:#ffc9dc;--in:#fff;--chat:#ffeaf2;--dot:rgba(214,59,124,.08)}}
+html[data-cel="rose"] #chat{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cg fill='%23ff6fa3' fill-opacity='.13'%3E%3Cpath d='M30 26c-6-9-20-4-15 7 3 7 15 14 15 14s12-7 15-14c5-11-9-16-15-7z'/%3E%3Cpath transform='translate(62 58) rotate(14 20 20) scale(.8)' d='M30 26c-6-9-20-4-15 7 3 7 15 14 15 14s12-7 15-14c5-11-9-16-15-7z'/%3E%3C/g%3E%3C/svg%3E");background-size:120px 120px}
+#celbar,#celbar2{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px 10px;background:linear-gradient(90deg,#ff4f8b,#ff8fb3);color:#fff;font:600 13px/1.3 system-ui,sans-serif;padding:7px 12px;text-align:center;flex:none}
+#celbar small{font-weight:400;opacity:.92}
+#celhearts{position:fixed;inset:0;z-index:6;pointer-events:none;overflow:hidden}
+#celhearts i{position:absolute;bottom:-8vh;font-style:normal;color:#ff6fa3;opacity:0;animation:celh linear infinite}
+#celhearts i::before{content:"♥"}
+@keyframes celh{0%{transform:translateY(0) scale(.8);opacity:0}12%{opacity:.55}100%{transform:translateY(-112vh) translateX(var(--x)) scale(1.1);opacity:0}}
+@media(prefers-reduced-motion:reduce){#celhearts{display:none}}`;
+  document.head.appendChild(s);
+}
+
+function showTheme(th){
+  const root=document.documentElement;
+  ["celbar","celbar2","celhearts"].forEach(id=>{const e=document.getElementById(id);if(e)e.remove()});
+  if(!th){delete root.dataset.cel;return}
+  tcss();root.dataset.cel=th.theme||"rose";
+
+  const mk=id=>{
+    const d=document.createElement("div");d.id=id;
+    const b=document.createElement("b");b.textContent=th.banner;d.appendChild(b);
+    if(th.sub){const s=document.createElement("small");s.textContent=th.sub+" saath";d.appendChild(s)}
+    return d;
+  };
+  const side=document.getElementById("side"),sb=side&&side.querySelector(".sbox");
+  if(sb)side.insertBefore(mk("celbar"),sb);                         // chat list: header ke neeche
+  const m=document.getElementById("msgs");
+  if(m&&m.parentNode)m.parentNode.insertBefore(mk("celbar2"),m);    // chat ke andar: bubbles ke upar
+
+  if(!RM){                                                         // halke ud-te hearts
+    const h=document.createElement("div");h.id="celhearts";
+    for(let i=0;i<9;i++){
+      const e=document.createElement("i");
+      e.style.cssText="left:"+(Math.random()*96)+"%;font-size:"+(14+Math.random()*16)+"px;--x:"+(Math.random()*60-30)+"px;animation-duration:"+(10+Math.random()*8)+"s;animation-delay:-"+(Math.random()*14)+"s";
+      h.appendChild(e);
+    }
+    document.body.appendChild(h);
+  }
 }
