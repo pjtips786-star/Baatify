@@ -12,10 +12,29 @@
     em.insertBefore(d,em.firstChild);
   }
 
-  // 2) Online pulse: header ke avatar par (status "online" ya "typing" ho tab)
   const os=$("os"),oa=$("oa");
+
+  // 2a) Chat ke andar typing bubble (samne wala type kare tab, aakhri message ke neeche)
+  const ms=$("msgs");let tyEl=null;
+  function tySync(){
+    if(!ms||!os)return;
+    if(!os.classList.contains("ty")){if(tyEl&&tyEl.parentNode)tyEl.remove();return}
+    if(!tyEl){
+      tyEl=document.createElement("div");tyEl.className="m tail mt-ty";
+      tyEl.setAttribute("role","img");tyEl.setAttribute("aria-label","typing");
+      tyEl.innerHTML="<i></i><i></i><i></i>";
+    }
+    if(ms.lastElementChild!==tyEl){
+      const near=ms.scrollHeight-ms.scrollTop-ms.clientHeight<140;
+      ms.appendChild(tyEl);
+      if(near)ms.scrollTop=ms.scrollHeight;
+    }
+  }
+  if(ms)new MutationObserver(tySync).observe(ms,{childList:true});
+
+  // 2) Online pulse: header ke avatar par (status "online" ya "typing" ho tab)
   if(os&&oa){
-    const f=()=>oa.classList.toggle("on",os.textContent==="online"||os.classList.contains("ty"));
+    const f=()=>{oa.classList.toggle("on",os.textContent==="online"||os.classList.contains("ty"));tySync()};
     new MutationObserver(f).observe(os,{childList:true,characterData:true,subtree:true,attributes:true,attributeFilter:["class"]});
     f();
   }
