@@ -117,3 +117,4 @@ html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;overscroll-beh
 .pr img{width:56px;height:56px;object-fit:cover;border-radius:8px;flex:none}
 .pc2{flex:1;display:grid;gap:5px;min-width:0}
 .pr button{background:none;border:0;color:var(--mute);font-size:18px;cursor:pointer}
+.gbox{display:grid;gap:12px}
