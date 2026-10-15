@@ -437,14 +437,16 @@ async function loadEvents(){
   try{
     const s=await getDoc(doc(db,"celebrations",uid));
     evs=s.exists()?JSON.parse(s.data().json||"[]"):[];
+    const m=await getDoc(doc(db,"celebrations",me.uid));
+    $("evm").checked=!m.exists()||m.data().themeOn!==false;
   }catch(e){box.textContent="Could not load";return}
   evUid=uid;renderEv();
 }
 async function patch(i,o){
   const old={...evs[i]};
   Object.assign(evs[i],o);
-  try{await persist();toast("Saved")}
-  catch(e){evs[i]=old;toast("Save failed: "+e.message);renderEv()}
+  try{await persist();toast("Saved");renderEv()}
+  catch(e){evs[i]=old;toast("Save failed: "+(e.code||e.message));renderEv()}
 }
 
 function renderEv(){
@@ -462,11 +464,11 @@ function renderEv(){
     if(ev.gift)tg.push("Gift");if(ev.photos&&ev.photos.length)tg.push(ev.photos.length+" photos");
     if(tg.length)c.appendChild(E("small",null,tg.join(" \u00b7 ")));
     [["active","Active"],["surprise","Surprise screen"],["chatTheme","Chat theme"]].forEach(([k,l])=>{
-  const lb=E("label","chs");
-  const c=document.createElement("input");c.type="checkbox";c.checked=ev[k]!==false;
-  c.onchange=()=>patch(i,{[k]:c.checked});
-  lb.append(c," "+l);card.append(lb);
-});
+      const lb=E("label","chs"),cb=document.createElement("input");
+      cb.type="checkbox";cb.checked=ev[k]!==false;
+      cb.onchange=()=>patch(i,{[k]:cb.checked});
+      lb.append(cb," "+l);c.appendChild(lb);
+    });
     const r=E("div","row wr");
     [["Edit",()=>ed(i)],["Preview",()=>{location.href="chat.html?cel="+evUid+"&n="+i+"&theme=1"}],["Copy",()=>dup(i)],["Delete",()=>del(i)]].forEach(a=>{
       const b=E("button","btn sm ghost",a[0]);b.type="button";b.onclick=a[1];r.appendChild(b);
@@ -476,12 +478,13 @@ function renderEv(){
 }
 
 async function persist(){
+  if(!evUid)throw new Error("Events not loaded yet");
   await setDoc(doc(db,"celebrations",evUid),{json:JSON.stringify(evs),updated:Timestamp.now()});
   if(evUid!==me.uid){
-    const on=$("evm")&&$("evm").checked;
+    const on=$("evm").checked;
     const mir=on?evs.filter(e=>e.active!==false&&e.chatTheme!==false)
-      .map(e=>({...e,surprise:false,photos:[],letter:"",gift:null})):[];
-    await setDoc(doc(db,"celebrations",me.uid),{json:JSON.stringify(mir),updated:Timestamp.now()});
+      .map(e=>({...e,surprise:false,photos:[],letter:"",messages:[],gift:null})):[];
+    await setDoc(doc(db,"celebrations",me.uid),{json:JSON.stringify(mir),themeOn:on,updated:Timestamp.now()});
   }
 }
 
@@ -503,7 +506,7 @@ function newEv(kind){
 function evShrink(f,max){
   return new Promise((res,rej)=>{
     const i=new Image();
-    i.onload=()=>{const s=Math.min(1,max/Math.max(i.width,i.height)),c=document.createElement("canvas");c.width=i.width*s;c.height=i.height*s;c.getContext("2d").drawImage(i,0,0,c.width,c.height);c.toBlob(res,"image/jpeg",.85)};
+    i.onload=()=>{const s=Math.min(1,max/Math.max(i.width,i.height)),c=document.createElement("canvas");c.width=i.width*s;c.height=i.height*s;c.getContext("2d").drawImage(i,0,0,c.width,c.height);c.toBlob(b=>b?res(b):rej(new Error("shrink")),"image/jpeg",.85)};
     i.onerror=rej;i.src=URL.createObjectURL(f);
   });
 }
@@ -579,13 +582,18 @@ function ed(idx,kind){
     });
   };rph();
 
+  let up=0;
   $("e_pf").onchange=async()=>{
     const fs=[...$("e_pf").files];$("e_pf").value="";
-    for(let i=0;i<fs.length;i++){
-      toast("Uploading "+(i+1)+"/"+fs.length+"\u2026");
-      try{ph.push({url:await upImg(fs[i]),caption:"",date:""});rph()}catch(e){toast("Upload failed: "+(e.message||e));return}
-    }
-    if(fs.length)toast("Photos added");
+    up++;
+    try{
+      for(let i=0;i<fs.length;i++){
+        toast("Uploading "+(i+1)+"/"+fs.length+"\u2026");
+        ph.push({url:await upImg(fs[i]),caption:"",date:""});rph();
+      }
+      if(fs.length)toast("Photos added \u2014 press Save");
+    }catch(e){toast("Upload failed: "+(e.message||e))}
+    up--;
   };
 
   const close=()=>w.remove();
@@ -606,15 +614,9 @@ function ed(idx,kind){
     if(t){o.gift={type:t};w.querySelectorAll("#e_g input").forEach(i=>{if(i.value.trim())o.gift[i.dataset.g]=i.value.trim()})}
     if(o.gift&&o.gift.type==="card"&&(!o.gift.brand||!o.gift.code)){toast("Gift card: brand and code are required");return}
     if(o.gift&&o.gift.type==="coupon"&&!o.gift.title){toast("Coupon: title is required");return}
-  if(isNew){
-  o.id=slug(o.title)+"-"+Date.now().toString(36);
-  evs.push(o);
-}else{
-  evs[idx]=o;
-}
-
-saveEvs().then(ok=>{
-  if(ok) close();
-});
+    if(up)return toast("Photos are still uploading");
+    const bak=JSON.stringify(evs);
+    if(isNew){o.id=slug(o.title)+"-"+Date.now().toString(36);evs.push(o)}else evs[idx]=o;
+    saveEvs().then(ok=>{if(ok)close();else evs=JSON.parse(bak)});
   };
 }
