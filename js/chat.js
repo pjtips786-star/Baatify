@@ -28,6 +28,7 @@ const ico=n=>'<svg class="i" aria-hidden="true"><use href="#i-'+n+'"/></svg>';
   if(h)document.body.insertAdjacentHTML("beforeend",'<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>'+h+'</defs></svg>');
 })();
 const SNAP={serverTimestamps:"estimate"};
+const tkd=new Set();
 let me=null,cur=null,chats=null,chatsAll=[],msgs=[],seen=new Set();
 let first=false,force=false,selId=null,rep=null,editing=null,ou={},clr=0,vurl="",askRes,swiped=false;
 let unsubL,unsubM,unsubU,st,hb,lt=0;
@@ -393,6 +394,7 @@ function renderMsgs(){
    if(mine){
       const k=document.createElement("span");
       k.className="tk"+(m.pending?" wait":"")+(!m.pending&&m.seen?" seen":"");
+      if(!m.pending&&m.seen){const tid=cur.id+m.id;if(!tkd.has(tid)){tkd.add(tid);if(!first)k.classList.add("draw")}}
       k.innerHTML=ico(m.pending?"clock":"check2");
       meta.appendChild(k);
     }
