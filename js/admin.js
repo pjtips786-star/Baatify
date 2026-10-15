@@ -510,7 +510,7 @@ function evShrink(f,max){
     i.onerror=rej;i.src=URL.createObjectURL(f);
   });
 }
-async function upImg(f){
+async function upImg(f,say){
   let blob=f;
   try{blob=await evShrink(f,1600)}catch(e){blob=f}
   const fd=new FormData();
@@ -519,7 +519,8 @@ async function upImg(f){
   return new Promise((res,rej)=>{
     const x=new XMLHttpRequest();
     x.open("POST","https://api.cloudinary.com/v1_1/"+CLD+"/image/upload");
-    x.upload.onprogress=e=>{if(e.lengthComputable)toast("Uploading "+Math.round(e.loaded/e.total*100)+"%")};
+    x.timeout=90000;x.ontimeout=()=>rej(new Error("Timed out"));
+    x.upload.onprogress=e=>{if(say&&e.lengthComputable)say("Uploading "+Math.round(e.loaded/e.total*100)+"%")};
     x.onload=()=>{
       let j={};try{j=JSON.parse(x.responseText)}catch(e){}
       if(x.status>=200&&x.status<300&&j.secure_url)res(j.secure_url);
@@ -545,7 +546,7 @@ function ed(idx,kind){
    '<div class="row"><label class="fl"><span>Counter start date</span><input id="e_start" type="date"></label><label class="fl"><span>Counter label</span><input id="e_lab" placeholder="saath"></label></div>'+
    '<label class="fl"><span>Letter</span><textarea id="e_let" rows="8"></textarea></label>'+
    '<label class="fl"><span>Rotating messages (one per line, used when the letter is empty)</span><textarea id="e_msg" rows="4"></textarea></label>'+
-   '<div class="fl"><span>Photos</span><input id="e_pf" type="file" accept="image/*" multiple><div id="e_ph"></div></div>'+
+   '<div class="fl"><span>Photos</span><input id="e_pf" type="file" accept="image/*" multiple><div id="e_ps" style="font-size:13px;min-height:18px"></div><div id="e_ph"></div></div>'+
    '<div class="fl"><span>Effects</span><div class="chs"><label><input type="checkbox" id="e_fw"> Fireworks</label><label><input type="checkbox" id="e_cf"> Confetti</label><label><input type="checkbox" id="e_pt"> Petals</label></div></div>'+
    '<div class="chs"><label><input type="checkbox" id="e_act"> Active</label><label><input type="checkbox" id="e_sur"> Surprise screen</label><label><input type="checkbox" id="e_th"> Chat theme</label></div>'+
    '<label class="fl"><span>Priority (smaller shows first)</span><input id="e_pri" type="number" min="1" max="9"></label>'+
@@ -583,17 +584,25 @@ function ed(idx,kind){
   };rph();
 
   let up=0;
+  const say=(t,bad)=>{const s=$("e_ps");if(!s)return;s.textContent=t;s.style.color=bad?"#ff6b81":""};
   $("e_pf").onchange=async()=>{
-    const fs=[...$("e_pf").files];$("e_pf").value="";
-    up++;
-    try{
-      for(let i=0;i<fs.length;i++){
-        toast("Uploading "+(i+1)+"/"+fs.length+"\u2026");
-        ph.push({url:await upImg(fs[i]),caption:"",date:""});rph();
-      }
-      if(fs.length)toast("Photos added \u2014 press Save");
-    }catch(e){toast("Upload failed: "+(e.message||e))}
+    const list=[...$("e_pf").files];
+    if(!list.length){say("No file selected",1);return}
+    up++;let ok=0;
+    for(let i=0;i<list.length;i++){
+      const tag="Photo "+(i+1)+"/"+list.length+": ";
+      try{
+        say(tag+"reading\u2026");
+        const f=list[i];
+        const copy=new Blob([await f.arrayBuffer()],{type:f.type||"image/jpeg"});
+        say(tag+"uploading\u2026");
+        const url=await upImg(copy,t=>say(tag+t));
+        ph.push({url:url,caption:"",date:""});rph();ok++;
+      }catch(e){say(tag+"failed \u2014 "+(e&&(e.message||e.name)||e),1);toast("Upload failed: "+(e&&e.message||e));break}
+    }
+    $("e_pf").value="";
     up--;
+    if(ok)say(ok+" photo(s) added \u2014 press Save");
   };
 
   const close=()=>w.remove();
