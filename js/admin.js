@@ -428,6 +428,7 @@ $("t-ev").innerHTML=
  '<div class="card"><h3>Events</h3><p class="mut" id="evh"></p><div id="evl"></div></div>'+
  '<div class="card"><h3>Add event</h3><div class="row wr"><button class="btn sm" data-k="anniversary" type="button">Anniversary</button><button class="btn sm" data-k="monthly" type="button">Monthsary</button><button class="btn sm" data-k="birthday" type="button">Birthday</button><button class="btn sm ghost" data-k="custom" type="button">Custom</button></div>'+
  '<label class="chk"><input type="checkbox" id="evm" checked> Also give me the chat theme on these days</label></div>';
+$("evm").onchange=()=>persist().then(()=>toast($("evm").checked?"Theme ON for you":"Theme OFF for you")).catch(e=>toast("Save failed: "+e.message));
 $("t-ev").querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>ed(-1,b.dataset.k));
 
 async function loadEvents(){
@@ -439,8 +440,15 @@ async function loadEvents(){
   }catch(e){box.textContent="Could not load";return}
   evUid=uid;renderEv();
 }
+async function patch(i,o){
+  const old={...evs[i]};
+  Object.assign(evs[i],o);
+  try{await persist();toast("Saved")}
+  catch(e){evs[i]=old;toast("Save failed: "+e.message);renderEv()}
+}
 
 function renderEv(){
+
   const box=$("evl");box.textContent="";
   $("evh").textContent="For "+pname(curChat())+" \u00b7 "+evs.length+" event"+(evs.length===1?"":"s");
   if(!evs.length)box.appendChild(E("p","mut","No events yet. Add one below."));
@@ -453,6 +461,12 @@ function renderEv(){
     if(ev.active===false)tg.push("Off");if(ev.surprise===false)tg.push("Theme only");
     if(ev.gift)tg.push("Gift");if(ev.photos&&ev.photos.length)tg.push(ev.photos.length+" photos");
     if(tg.length)c.appendChild(E("small",null,tg.join(" \u00b7 ")));
+    [["active","Active"],["surprise","Surprise screen"],["chatTheme","Chat theme"]].forEach(([k,l])=>{
+  const lb=E("label","chs");
+  const c=document.createElement("input");c.type="checkbox";c.checked=ev[k]!==false;
+  c.onchange=()=>patch(i,{[k]:c.checked});
+  lb.append(c," "+l);card.append(lb);
+});
     const r=E("div","row wr");
     [["Edit",()=>ed(i)],["Preview",()=>{location.href="chat.html?cel="+evUid+"&n="+i+"&theme=1"}],["Copy",()=>dup(i)],["Delete",()=>del(i)]].forEach(a=>{
       const b=E("button","btn sm ghost",a[0]);b.type="button";b.onclick=a[1];r.appendChild(b);
@@ -463,12 +477,15 @@ function renderEv(){
 
 async function persist(){
   await setDoc(doc(db,"celebrations",evUid),{json:JSON.stringify(evs),updated:Timestamp.now()});
-  if($("evm").checked&&evUid!==me.uid){                       // tumhare account ke liye sirf theme
-    const th=evs.map(e=>({id:e.id,title:e.title,repeat:e.repeat,month:e.month,day:e.day,year:e.year,start:e.start,counterLabel:e.counterLabel,priority:e.priority,skipMonths:e.skipMonths,active:e.active,chatTheme:e.chatTheme,surprise:false}));
-    await setDoc(doc(db,"celebrations",me.uid),{json:JSON.stringify(th),updated:Timestamp.now()});
+  if(evUid!==me.uid){
+    const on=$("evm")&&$("evm").checked;
+    const mir=on?evs.filter(e=>e.active!==false&&e.chatTheme!==false)
+      .map(e=>({...e,surprise:false,photos:[],letter:"",gift:null})):[];
+    await setDoc(doc(db,"celebrations",me.uid),{json:JSON.stringify(mir),updated:Timestamp.now()});
   }
 }
-async function saveEvs(){try{await persist();renderEv();toast("Saved")}catch(e){toast("Error: "+(e.code||e.message))}}
+
+async function saveEvs(){try{await persist();renderEv();toast("Saved");return true;}catch(e){toast("Error: "+(e.code||e.message));return false;}}
 function dup(i){const e=JSON.parse(JSON.stringify(evs[i]));e.id=slug(e.title)+"-"+Date.now().toString(36);e.title+=" (copy)";evs.splice(i+1,0,e);saveEvs()}
 function del(i){if(!confirm('Delete "'+evs[i].title+'"?'))return;evs.splice(i,1);saveEvs()}
 
@@ -491,10 +508,23 @@ function evShrink(f,max){
   });
 }
 async function upImg(f){
-  const fd=new FormData();fd.append("file",await evShrink(f,1600),"p.jpg");fd.append("upload_preset",PRE);
-  const j=await (await fetch("https://api.cloudinary.com/v1_1/"+CLD+"/image/upload",{method:"POST",body:fd})).json();
-  if(!j.secure_url)throw new Error((j.error&&j.error.message)||"upload failed");
-  return j.secure_url;
+  let blob=f;
+  try{blob=await evShrink(f,1600)}catch(e){blob=f}
+  const fd=new FormData();
+  fd.append("file",blob,blob===f?f.name:"p.jpg");
+  fd.append("upload_preset",PRE);
+  return new Promise((res,rej)=>{
+    const x=new XMLHttpRequest();
+    x.open("POST","https://api.cloudinary.com/v1_1/"+CLD+"/image/upload");
+    x.upload.onprogress=e=>{if(e.lengthComputable)toast("Uploading "+Math.round(e.loaded/e.total*100)+"%")};
+    x.onload=()=>{
+      let j={};try{j=JSON.parse(x.responseText)}catch(e){}
+      if(x.status>=200&&x.status<300&&j.secure_url)res(j.secure_url);
+      else rej(new Error((j.error&&j.error.message)||("HTTP "+x.status)))
+    };
+    x.onerror=()=>rej(new Error("Network error"));
+    x.send(fd);
+  });
 }
 
 function ed(idx,kind){
@@ -516,7 +546,7 @@ function ed(idx,kind){
    '<div class="fl"><span>Effects</span><div class="chs"><label><input type="checkbox" id="e_fw"> Fireworks</label><label><input type="checkbox" id="e_cf"> Confetti</label><label><input type="checkbox" id="e_pt"> Petals</label></div></div>'+
    '<div class="chs"><label><input type="checkbox" id="e_act"> Active</label><label><input type="checkbox" id="e_sur"> Surprise screen</label><label><input type="checkbox" id="e_th"> Chat theme</label></div>'+
    '<label class="fl"><span>Priority (smaller shows first)</span><input id="e_pri" type="number" min="1" max="9"></label>'+
-   '<label class="fl"><span>Gift</span><select id="e_gt"><option value="">None</option><option value="card">Gift card</option><option value="coupon">Coupon</option></select></label><div id="e_g" class="eb" style="padding:0"></div></div>';
+   '<label class="fl"><span>Gift</span><select id="e_gt"><option value="">None</option><option value="card">Gift card</option><option value="coupon">Coupon</option></select></label><div id="e_g" class="gbox"></div></div>';
   document.body.appendChild(w);
 
   const v=(id,x)=>{$(id).value=x==null?"":x},c=(id,x)=>{$(id).checked=!!x};
@@ -574,7 +604,17 @@ function ed(idx,kind){
     if(o.repeat==="none"&&!o.year)return toast("Enter the year");
     const t=$("e_gt").value;
     if(t){o.gift={type:t};w.querySelectorAll("#e_g input").forEach(i=>{if(i.value.trim())o.gift[i.dataset.g]=i.value.trim()})}
-    if(isNew){o.id=slug(o.title)+"-"+Date.now().toString(36);evs.push(o)}else evs[idx]=o;
-    saveEvs().then(close);
+    if(o.gift&&o.gift.type==="card"&&(!o.gift.brand||!o.gift.code)){toast("Gift card: brand and code are required");return}
+    if(o.gift&&o.gift.type==="coupon"&&!o.gift.title){toast("Coupon: title is required");return}
+  if(isNew){
+  o.id=slug(o.title)+"-"+Date.now().toString(36);
+  evs.push(o);
+}else{
+  evs[idx]=o;
+}
+
+saveEvs().then(ok=>{
+  if(ok) close();
+});
   };
 }
