@@ -18,9 +18,10 @@
   const ms=$("msgs");let tyEl=null;
   function tySync(){
     if(!ms||!os)return;
-    if(!os.classList.contains("ty")){if(tyEl&&tyEl.parentNode)tyEl.remove();return}
+    const pane=$("pane");
+    if(!document.body.classList.contains("mt-typing")||(pane&&pane.classList.contains("hide"))){if(tyEl&&tyEl.parentNode)tyEl.remove();return}
     if(!tyEl){
-      tyEl=document.createElement("div");tyEl.className="m tail mt-ty";
+      tyEl=document.createElement("div");tyEl.className="m mt-ty";
       tyEl.setAttribute("role","img");tyEl.setAttribute("aria-label","typing");
       tyEl.innerHTML="<i></i><i></i><i></i>";
     }
@@ -31,10 +32,11 @@
     }
   }
   if(ms)new MutationObserver(tySync).observe(ms,{childList:true});
+  new MutationObserver(tySync).observe(document.body,{attributes:true,attributeFilter:["class"]});
 
   // 2) Online pulse: header ke avatar par (status "online" ya "typing" ho tab)
   if(os&&oa){
-    const f=()=>{oa.classList.toggle("on",os.textContent==="online"||os.classList.contains("ty"));tySync()};
+    const f=()=>{oa.classList.toggle("on",os.textContent==="online"||document.body.classList.contains("mt-typing"));tySync()};
     new MutationObserver(f).observe(os,{childList:true,characterData:true,subtree:true,attributes:true,attributeFilter:["class"]});
     f();
   }
