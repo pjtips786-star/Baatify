@@ -31,8 +31,21 @@
       if(near)ms.scrollTop=ms.scrollHeight;
     }
   }
-  if(ms)new MutationObserver(tySync).observe(ms,{childList:true});
-  new MutationObserver(tySync).observe(document.body,{attributes:true,attributeFilter:["class"]});
+  // Naya message aate hi typing turant hat jaye (chat.js ka status() 2 sec me ek baar chalta hai)
+  let sup=0,seenLast=null;
+  const bd=document.body;
+  function hideTy(){sup=Date.now()+2500;bd.classList.remove("mt-typing");if(tyEl&&tyEl.parentNode)tyEl.remove()}
+  function incoming(){
+    if(!ms)return;
+    const k=[...ms.children].filter(e=>e.classList.contains("m")&&!e.classList.contains("mt-ty"));
+    const last=k[k.length-1];
+    if(last&&last!==seenLast&&last.classList.contains("new")&&!last.classList.contains("me")){seenLast=last;hideTy()}
+  }
+  if(ms)new MutationObserver(()=>{incoming();tySync()}).observe(ms,{childList:true});
+  new MutationObserver(()=>{
+    if(Date.now()<sup&&bd.classList.contains("mt-typing")){bd.classList.remove("mt-typing");return}
+    tySync();
+  }).observe(bd,{attributes:true,attributeFilter:["class"]});
 
   // 2) Online pulse: header ke avatar par (status "online" ya "typing" ho tab)
   if(os&&oa){
