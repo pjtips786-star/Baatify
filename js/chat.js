@@ -316,7 +316,7 @@ function status(){
   const el=$("os");el.classList.remove("ty");
   const c=chatsAll.find(x=>x.id===cur.id);
   const tm=c&&c.typing?tms(c.typing[cur.o.uid]):0;
-  document.body.classList.toggle("mt-typing",!!(tm&&Date.now()-tm<8000));
+  document.body.classList.toggle("mt-typing",!!(tm&&Date.now()-tm<4000));
   const ls=tms(ou.lastSeen);
   if(ou.online&&Date.now()-ls<240000){el.textContent="online";return}
   if(!ls){el.textContent="";return}
