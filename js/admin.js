@@ -583,6 +583,7 @@ function ed(idx,kind){
     });
   };rph();
 
+  if(/; wv\)|Version\/[\d.]+ Chrome/.test(navigator.userAgent))$("e_pf").removeAttribute("multiple");   // app WebView: ek-ek photo
   let up=0;
   const say=(t,bad)=>{const s=$("e_ps");if(!s)return;s.textContent=t;s.style.color=bad?"#ff6b81":""};
   $("e_pf").onchange=async()=>{
