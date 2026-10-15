@@ -27,17 +27,6 @@
   /* Online pulse */
   #oa.on::before{content:"";position:absolute;right:-4px;bottom:-4px;width:19px;height:19px;border:1px solid #20bf79;border-radius:50%;animation:mtRing 1.8s ease-out infinite}
 
-  /* Typing: "typing" + chalte hue dots */
-  .who small.ty{font-size:0}
-  .who small.ty::before{content:"typing";font-size:12px;margin-right:4px}
-  .who small.ty::after{content:"";display:inline-block;height:5px;width:5px;vertical-align:middle;margin-bottom:2px;
-    background:radial-gradient(circle,var(--g) 2px,transparent 2.5px) 0 0/8px 5px repeat-x;animation:mtDots 1.2s steps(1) infinite}
-
-  .mt-ty{animation:mtIn .25s ease-out}
-  .mt-ty i{animation:mtBounce 1s ease-in-out infinite}
-  .mt-ty i:nth-child(2){animation-delay:.15s}
-  .mt-ty i:nth-child(3){animation-delay:.3s}
-
   /* Send */
   .mt-fly{animation:mtFly .55s ease-in forwards}
 
