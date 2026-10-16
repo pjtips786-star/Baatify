@@ -6,7 +6,7 @@
   /* ---------- Shared SVG art ---------- */
   // SVG files assets/ folder me hain (chat.html ke saath wale folder me)
   const BUB='<img class="mt-eimg" src="assets/empty-chat.svg" alt="" width="96" height="80" draggable="false">';
-  const LOADER='<img class="mt-ld" src="assets/loading.svg" alt="Loading" width="68" height="68" draggable="false">';
+  const LOADER='<img class="mt-ld" src="assets/loading.svg" alt="Loading" width="196" height="196" draggable="false">';
   function emptyArt(title,sub){
     const d=document.createElement("div");d.className="mt-empty";
     d.innerHTML='<div class="mt-bub" aria-hidden="true">'+BUB+'</div><strong></strong><span></span>';
