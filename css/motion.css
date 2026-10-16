@@ -48,7 +48,7 @@
 
 /* ===== Loading SVG (skeleton ki jagah) ===== */
 .row.sk{display:none!important}
-.mt-ld{display:block;width:208px;height:208px;user-select:none}
+.mt-ld{display:block;width:250px;height:250px;user-select:none}
 
 /* ===== Empty chat screen (list + chat page) ===== */
 .mt-hide{display:none!important}
