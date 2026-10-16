@@ -6,7 +6,7 @@
   /* ---------- Shared SVG art ---------- */
   // SVG files assets/ folder me hain (chat.html ke saath wale folder me)
   const BUB='<img class="mt-eimg" src="assets/empty-chat.svg" alt="" width="96" height="80" draggable="false">';
-  const LOADER='<img class="mt-ld" src="assets/loading.svg" alt="Loading" width="196" height="196" draggable="false">';
+  const LOADER='<img class="mt-ld" src="assets/loading.svg" alt="Loading" width="68" height="68" draggable="false">';
   function emptyArt(title,sub){
     const d=document.createElement("div");d.className="mt-empty";
     d.innerHTML='<div class="mt-bub" aria-hidden="true">'+BUB+'</div><strong></strong><span></span>';
@@ -26,12 +26,17 @@
   if(list&&side){
     const ldr=document.createElement("div");ldr.className="mt-lw";ldr.setAttribute("role","status");
     ldr.innerHTML=LOADER;side.appendChild(ldr);
-    const MIN=1300;let t0=0,tm=null;
+    const MIN=1300;let tm=null;
+    // Page khulte hi loader ON (skeleton dikhe ya na dikhe), list tayyar hone par bhi kam se kam 1 poora round
+    const place=()=>{ldr.style.top=list.offsetTop+"px"};
+    place();ldr.classList.add("on");let t0=Date.now();
+    addEventListener("resize",place);
     const listSync=()=>{
       const sk=!!list.querySelector(".row.sk");
-      if(sk){
+      const real=[...list.children].some(e=>e.classList&&!e.classList.contains("sk")&&(e.classList.contains("row")||e.classList.contains("note")||e.classList.contains("mt-empty")));
+      if(sk||!real){
         clearTimeout(tm);tm=null;
-        if(!ldr.classList.contains("on")){ldr.style.top=list.offsetTop+"px";ldr.classList.add("on");t0=Date.now()}
+        if(!ldr.classList.contains("on")){place();ldr.classList.add("on");t0=Date.now()}
       }else if(ldr.classList.contains("on")&&!tm){
         tm=setTimeout(()=>{ldr.classList.remove("on");tm=null},Math.max(0,MIN-(Date.now()-t0)));
       }
