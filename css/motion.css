@@ -51,7 +51,7 @@
 #side{position:relative}
 .mt-lw{position:absolute;left:0;right:0;bottom:0;z-index:4;background:var(--side);display:none;place-items:center;pointer-events:none}
 .mt-lw.on{display:grid}
-.mt-ld{display:block;width:144px;height:144px;user-select:none}
+.mt-ld{display:block;width:196px;height:196px;user-select:none}
 
 /* ===== Empty chat screen (list + chat page) ===== */
 .mt-hide{display:none!important}
