@@ -15,8 +15,8 @@ if(head&&av&&!matchMedia("(prefers-reduced-motion:reduce)").matches){
 @keyframes hdmv{
  0%{transform:translateX(0) scaleX(1);animation-timing-function:ease-in-out}
  49.5%{transform:translateX(var(--d)) scaleX(1)}
- 50%{transform:translateX(var(--d)) scaleX(-1);animation-timing-function:ease-in-out}
- 99.5%{transform:translateX(0) scaleX(-1)}
+ 50%{transform:translateX(var(--d)) scaleX(1);animation-timing-function:ease-in-out}
+ 99.5%{transform:translateX(0) scaleX(1)}
  100%{transform:translateX(0) scaleX(1)}}`;
   document.head.appendChild(st);
   const w=document.createElement("div");w.id="hdw";w.setAttribute("aria-hidden","true");
