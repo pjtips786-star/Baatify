@@ -4,8 +4,8 @@
    Zyada der data aata ho to: <script ... data-wait="#kuchh"> (us element me content aate hi hatega) */
 (()=>{
   const SRC="assets/loading.svg";   // <-- loading svg ka path
-  const SIZE=68;                    // <-- size (px) yahan se badlo
-  const MIN=1300;                   // <-- kam se kam itni der (ms) dikhegi (1 poora round)
+  const SIZE=250;                    // <-- size (px) yahan se badlo
+  const MIN=1500;                   // <-- kam se kam itni der (ms) dikhegi (1 poora round)
   const MAX=10000;                  // <-- kuch bhi ho to 10 sec baad hata do
   if(document.getElementById("mtBoot"))return;
   const me=document.currentScript,wait=me&&me.dataset&&me.dataset.wait;
