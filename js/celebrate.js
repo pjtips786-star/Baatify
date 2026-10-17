@@ -57,11 +57,23 @@ function markSeen(id,day){
 async function load(uid){
   const s=await getDoc(doc(db,"celebrations",uid));
   if(!s.exists())return [];
-  const j=JSON.parse(s.data().json||"[]");
+  const d=s.data();
+  if(d.themeOn===false)return [];                     // admin ne apne liye theme band kiya
+  let j=[];
+  if(d.by&&typeof d.by==="object"){                   // admin ka mirror: har chat ka alag hissa
+    for(const k of Object.keys(d.by)){
+      try{const a=JSON.parse(d.by[k]||"[]");if(Array.isArray(a))j=j.concat(a)}catch(e){}
+    }
+  }else{try{j=JSON.parse(d.json||"[]")}catch(e){j=[]}}
   return Array.isArray(j)?j:[];
 }
 
 const TH="bt_cel_th";
+function note(t){
+  const e=document.getElementById("toast");if(!e)return;
+  e.textContent=t;e.classList.add("on");setTimeout(()=>e.classList.remove("on"),4000);
+}
+const FRESH=10*60*1000;                              // cache 10 minute: admin ka badlav jaldi dikhe
 
 function themeOf(t,n){
   const c=counter(t,n);
@@ -90,7 +102,8 @@ export async function check(uid){
       const evs=await load(pv),ev=evs[+(q.get("n")||0)];
       if(ev){
         if(q.get("theme"))showTheme(themeOf(ev,ist()));
-        await play(ev,true,ist());
+        if(ev.surprise!==false||q.get("force"))await play(ev,true,ist());
+        else note("Surprise screen is OFF for this event (theme only)");
       }
     }catch(e){}
     return;
@@ -99,7 +112,7 @@ export async function check(uid){
   showTheme(readTh(uid,day));                // pehle cache se: koi read nahi
   armMidnight(uid);
   let ch=null;try{ch=JSON.parse(localStorage.getItem("bt_cel")||"null")}catch(e){}
-  if(ch&&ch.day===day&&ch.uid===uid&&!ch.pending&&ch.th)return;      // aaj ka kaam ho chuka
+  if(ch&&ch.day===day&&ch.uid===uid&&!ch.pending&&ch.th&&Date.now()-(ch.at||0)<FRESH)return;      // aaj ka kaam ho chuka
   let evs;try{evs=await load(uid)}catch(e){return}                     // offline: baad mein
   const th=themeFor(evs,n);
   try{localStorage.setItem(TH,JSON.stringify({day,uid,th}))}catch(e){}
@@ -107,9 +120,9 @@ export async function check(uid){
   const seen=seenSet();
   const due=evs.filter(e=>e.surprise!==false&&matches(e,n)&&!seen.has((e.id||e.title)+"|"+day))
                .sort((a,b)=>(a.priority||5)-(b.priority||5));
-  try{localStorage.setItem("bt_cel",JSON.stringify({day,uid,pending:due.length>0,th:1}))}catch(e){}
+  try{localStorage.setItem("bt_cel",JSON.stringify({day,uid,pending:due.length>0,th:1,at:Date.now()}))}catch(e){}
   for(const ev of due)await play(ev,false,n);
-  try{localStorage.setItem("bt_cel",JSON.stringify({day,uid,pending:false,th:1}))}catch(e){}
+  try{localStorage.setItem("bt_cel",JSON.stringify({day,uid,pending:false,th:1,at:Date.now()}))}catch(e){}
 }
 
 /* ---------- effects: aatishbaazi, confetti, hearts, patiyan ---------- */
