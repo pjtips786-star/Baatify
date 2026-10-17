@@ -484,7 +484,8 @@ async function persist(){
     const on=$("evm").checked;
     const mir=on?evs.filter(e=>e.active!==false&&e.chatTheme!==false)
       .map(e=>({...e,surprise:false,photos:[],letter:"",messages:[],gift:null})):[];
-    await setDoc(doc(db,"celebrations",me.uid),{json:JSON.stringify(mir),themeOn:on,updated:Timestamp.now()});
+    // har chat ka apna hissa (by.<uid>): ek chat ka save dusre chat ka theme nahi mitata
+    await setDoc(doc(db,"celebrations",me.uid),{json:deleteField(),by:{[evUid]:JSON.stringify(mir)},themeOn:on,updated:Timestamp.now()},{merge:true});
   }
 }
 
