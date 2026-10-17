@@ -5,7 +5,7 @@
 (()=>{
   const SRC="assets/loading.svg";   // <-- loading svg ka path
   const SIZE=250;                    // <-- size (px) yahan se badlo
-  const MIN=1500;                   // <-- kam se kam itni der (ms) dikhegi (1 poora round)
+  const MIN=1000;                   // <-- kam se kam itni der (ms) dikhegi (1 poora round)
   const MAX=10000;                  // <-- kuch bhi ho to 10 sec baad hata do
   if(document.getElementById("mtBoot"))return;
   const me=document.currentScript,wait=me&&me.dataset&&me.dataset.wait;
