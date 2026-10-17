@@ -1,7 +1,7 @@
 /* ===== hdsvg.js: header me svg profile icon se admin icon tak left-right chalta rahe ===== */
 const SRC="assets/bird.svg";      // <-- yahan apni svg ka naam likho (assets folder me)
-const SIZE=30;                      // <-- svg ka size (px) yahan se chhota-bada karo
-const SECS=7;                       // <-- ek taraf se doosri taraf aur wapas aane ka time (sec)
+const SIZE=50;                      // <-- svg ka size (px) yahan se chhota-bada karo
+const SECS=3;                       // <-- ek taraf se doosri taraf aur wapas aane ka time (sec)
 
 const head=document.querySelector("#side>header");
 const av=document.getElementById("me");
@@ -15,8 +15,8 @@ if(head&&av&&!matchMedia("(prefers-reduced-motion:reduce)").matches){
 @keyframes hdmv{
  0%{transform:translateX(0) scaleX(1);animation-timing-function:ease-in-out}
  49.5%{transform:translateX(var(--d)) scaleX(1)}
- 50%{transform:translateX(var(--d)) scaleX(-1);animation-timing-function:ease-in-out}
- 99.5%{transform:translateX(0) scaleX(-1)}
+ 50%{transform:translateX(var(--d)) scaleX(1);animation-timing-function:ease-in-out}
+ 99.5%{transform:translateX(0) scaleX(1)}
  100%{transform:translateX(0) scaleX(1)}}`;
   document.head.appendChild(st);
   const w=document.createElement("div");w.id="hdw";w.setAttribute("aria-hidden","true");
