@@ -2,7 +2,7 @@
    Data: status/{id} = {uid,name,photo,type:"text"|"photo",text,bg,url,caption,viewers[],createdAt,expiresAt}
    status/{id}/views/{uid} = {name,photo,at}
    viewers = people you had a chat with when you posted; only they can see the status. */
-import {doc,addDoc,setDoc,updateDoc,increment,deleteDoc,collection,query,where,onSnapshot,serverTimestamp,Timestamp} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import {doc,getDoc,addDoc,setDoc,updateDoc,increment,deleteDoc,collection,query,where,onSnapshot,serverTimestamp,Timestamp} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 const {db}=await import("./firebase.js"+(window.V||""));
 
 const CLOUD="dzbqkvysn",PRESET="Baatify";
@@ -179,10 +179,17 @@ function css(){
 #stv .vl h4{margin:0 0 4px;font:700 15px system-ui,sans-serif;display:flex;align-items:center;justify-content:space-between}
 #stv .vl h4 button{border:0;background:none;color:inherit;cursor:pointer;padding:4px;display:grid}
 #stv .vl .r{display:flex;align-items:center;gap:10px;font:14px system-ui,sans-serif}
-#stv .vl .stc{width:36px;height:36px;border:0;flex:none}
+#stv .vl .stc{width:42px;height:42px;border:0;flex:none}
+#stv .vl .nm{font-weight:600;font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #stv .vl small{margin-left:auto;opacity:.7}
 #stv .vl p{margin:0;opacity:.7;font:14px system-ui,sans-serif}`;
   document.head.appendChild(s);
+}
+/* latest name + photo of a user (cached), so lists never show a stale name or picture */
+const uc=new Map();
+function userOf(uid){
+  if(!uc.has(uid))uc.set(uid,getDoc(doc(db,"users",uid)).then(s=>s.exists()?s.data():{}).catch(()=>({})));
+  return uc.get(uid);
 }
 const setAv=(el,name,photo)=>{
   if(photo){el.style.backgroundImage='url("'+photo.replace(/"/g,"%22")+'")';el.textContent=""}
@@ -297,7 +304,7 @@ function openViewer(groups,gi,si){
     relV&&relV();fin();
   };
   relV=pushLayer(()=>fin());                                // Back button
-  el.addEventListener("click",e=>{e.preventDefault();e.stopPropagation()},true);
+  el.addEventListener("click",e=>{if(gone){e.preventDefault();e.stopPropagation()}},true);   // only while closing: swallow the ghost click
   el.addEventListener("contextmenu",e=>e.preventDefault());
   const key=e=>{
     if(e.target&&e.target.tagName==="INPUT"){if(e.key==="Escape")e.target.blur();return}
@@ -325,8 +332,9 @@ function openViewer(groups,gi,si){
     x.onclick=closeSheet;h.appendChild(x);p.appendChild(h);
     if(!vdocs.length)p.appendChild(E("p",null,"No views yet"));
     vdocs.forEach(d=>{
-      const r=E("div","r"),a=E("div","stc");setAv(a,d.name,d.photo);
-      r.append(a,E("span",null,d.name||"User"),E("small",null,agoText(d.at)));p.appendChild(r);
+      const r=E("div","r"),a=E("div","stc"),n=E("span","nm",d.name||"User");setAv(a,d.name,d.photo);
+      r.append(a,n,E("small",null,agoText(d.at)));p.appendChild(r);
+      userOf(d.id).then(u=>{if(u.name)n.textContent=u.name;if(u.name||u.photo)setAv(a,u.name||d.name,u.photo||d.photo)});
     });
   };
   const closeSheet=()=>{
@@ -388,6 +396,7 @@ function openViewer(groups,gi,si){
     const g=groups[gi],s=g[si];
     run=false;cancelAnimationFrame(raf);bars();
     setAv(av,s.name,s.photo);nm.textContent=s.uid===me.uid?"My status":s.name;tm.textContent=agoText(s.createdAt);
+    userOf(s.uid).then(u=>{if(gone||groups[gi][si]!==s)return;if(u.name||u.photo)setAv(av,u.name||s.name,u.photo||s.photo);if(u.name&&s.uid!==me.uid)nm.textContent=u.name});
     sg.textContent="";sg.style.background="";
     markSeen(s.id);side(s);
     if(s.type==="photo"){
@@ -468,13 +477,16 @@ function renderStrip(){
     const b=E("button","sti");b.type="button";
     const r=E("div","str "+cls),c=E("div","stc");setAv(c,name,photo);r.appendChild(c);
     if(plus){const p=E("span","stp");p.innerHTML=icon("plus",14);p.onclick=e=>{e.stopPropagation();openComposer()};r.appendChild(p)}
-    b.append(r,E("small",null,label));b.onclick=click;strip.appendChild(b);
+    const lb=E("small",null,label);
+    b.append(r,lb);b.onclick=click;strip.appendChild(b);
+    return {c,lb};
   };
   item(m.length?"My status":"Add status",me.name,me.photo,m.length?"":"none",
     ()=>{m.length?openViewer([m],0,0):openComposer()},true);
   snap.groups.forEach((g,gi)=>{
     const unseen=g.findIndex(s=>!seen.has(s.id)),l=g[g.length-1];
-    item(l.name,l.name,l.photo,unseen>=0?"new":"",()=>openViewer(snap.groups,gi,unseen>=0?unseen:0));
+    const it=item(l.name,l.name,l.photo,unseen>=0?"new":"",()=>openViewer(snap.groups,gi,unseen>=0?unseen:0));
+    userOf(l.uid).then(u=>{if(u.name)it.lb.textContent=u.name;if(u.name||u.photo)setAv(it.c,u.name||l.name,u.photo||l.photo)});
   });
 }
 
