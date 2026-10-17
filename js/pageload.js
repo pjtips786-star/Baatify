@@ -22,7 +22,7 @@
     setTimeout(()=>{b.classList.add("out");setTimeout(()=>b.remove(),300)},Math.max(0,MIN-(performance.now()-t0)));
   };
   window.btReady=hide;                                   // page chahe to khud bhi bula sakta hai
-  setTimeout(hide,MAX);
+  
   const ready=()=>{
     if(!wait){hide();return}
     const chk=()=>{const e=document.querySelector(wait);if(e&&(e.children.length||e.textContent.trim())){hide();return true}};
