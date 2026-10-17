@@ -493,14 +493,22 @@ async function saveEvs(){try{await persist();renderEv();toast("Saved");return tr
 function dup(i){const e=JSON.parse(JSON.stringify(evs[i]));e.id=slug(e.title)+"-"+Date.now().toString(36);e.title+=" (copy)";evs.splice(i+1,0,e);saveEvs()}
 function del(i){if(!confirm('Delete "'+evs[i].title+'"?'))return;evs.splice(i,1);saveEvs()}
 
+const TPL={
+  anniversary:{n:"Anniversary",title:"Happy Anniversary",fx:["fireworks","confetti","petals"],lab:"saath"},
+  birthday:{n:"Birthday",title:"Happy Birthday",fx:["fireworks","confetti","balloons"],lab:"ki zindagi"},
+  monthsary:{n:"Monthsary",title:"Happy Monthsary",fx:["petals","hearts"],lab:"saath"},
+  custom:{n:"Custom",title:"",fx:["confetti"],lab:""}
+};
+const tplGuess=ev=>TPL[ev.template]?ev.template:ev.repeat==="monthly"?"monthsary":/birth/i.test((ev.title||"")+" "+(ev.name||""))?"birthday":"anniversary";
 function newEv(kind){
   const f=evs[0]||{},n=istNow();
-  const t={id:"",title:"",name:f.name||"",repeat:"none",month:n.m,day:n.d,year:n.y,start:f.start||"",counterLabel:"",priority:5,
-    effects:["confetti","petals"],chatTheme:true,surprise:true,active:true,letter:"",messages:[],photos:[],gift:null,skipMonths:[]};
-  if(kind==="anniversary")Object.assign(t,{title:"Happy Anniversary",repeat:"yearly",priority:1,effects:["fireworks","confetti","petals"]});
-  if(kind==="monthly")Object.assign(t,{title:"Happy Monthsary",repeat:"monthly"});
-  if(kind==="birthday")Object.assign(t,{title:"Happy Birthday",repeat:"yearly",priority:2,counterLabel:"ki zindagi",start:"",effects:["fireworks","confetti","petals"]});
-  if((kind==="anniversary"||kind==="monthly")&&/^\d{4}-\d\d-\d\d$/.test(t.start)){t.month=+t.start.slice(5,7);t.day=+t.start.slice(8)}
+  const tk=kind==="monthly"?"monthsary":(TPL[kind]?kind:"custom"),tp=TPL[tk];
+  const t={id:"",template:tk,title:tp.title,name:f.name||"",repeat:"none",month:n.m,day:n.d,year:n.y,start:f.start||"",counterLabel:"",priority:5,
+    effects:tp.fx.slice(),chatTheme:true,surprise:true,active:true,letter:"",messages:[],photos:[],gift:null,skipMonths:[]};
+  if(tk==="anniversary")Object.assign(t,{repeat:"yearly",priority:1});
+  if(tk==="monthsary")Object.assign(t,{repeat:"monthly"});
+  if(tk==="birthday")Object.assign(t,{repeat:"yearly",priority:2,start:""});
+  if((tk==="anniversary"||tk==="monthsary")&&/^\d{4}-\d\d-\d\d$/.test(t.start)){t.month=+t.start.slice(5,7);t.day=+t.start.slice(8)}
   return t;
 }
 
@@ -539,6 +547,7 @@ function ed(idx,kind){
   const mon=MON.map((m,i)=>'<option value="'+(i+1)+'">'+m+'</option>').join("");
   w.innerHTML=
    '<div class="eh"><button type="button" id="e_x" aria-label="Close">'+ico("x")+'</button><b>'+(isNew?"New event":"Edit event")+'</b><button type="button" class="btn sm" id="e_s">Save</button></div><div class="eb">'+
+   '<label class="fl"><span>Template (design)</span><select id="e_tpl">'+Object.keys(TPL).map(k=>'<option value="'+k+'">'+TPL[k].n+'</option>').join("")+'</select></label>'+
    '<label class="fl"><span>Title</span><input id="e_title" maxlength="60"></label>'+
    '<label class="fl"><span>Name shown on screen</span><input id="e_name" maxlength="40"></label>'+
    '<label class="fl"><span>Repeat</span><select id="e_rep"><option value="yearly">Every year</option><option value="monthly">Every month</option><option value="none">Once</option></select></label>'+
@@ -548,7 +557,7 @@ function ed(idx,kind){
    '<label class="fl"><span>Letter</span><textarea id="e_let" rows="8"></textarea></label>'+
    '<label class="fl"><span>Rotating messages (one per line, used when the letter is empty)</span><textarea id="e_msg" rows="4"></textarea></label>'+
    '<div class="fl"><span>Photos</span><input id="e_pf" type="file" accept="image/*" multiple><div id="e_ps" style="font-size:13px;min-height:18px"></div><div id="e_ph"></div></div>'+
-   '<div class="fl"><span>Effects</span><div class="chs"><label><input type="checkbox" id="e_fw"> Fireworks</label><label><input type="checkbox" id="e_cf"> Confetti</label><label><input type="checkbox" id="e_pt"> Petals</label></div></div>'+
+   '<div class="fl"><span>Effects</span><div class="chs"><label><input type="checkbox" id="e_fw"> Fireworks</label><label><input type="checkbox" id="e_cf"> Confetti</label><label><input type="checkbox" id="e_pt"> Petals</label><label><input type="checkbox" id="e_bl"> Balloons</label><label><input type="checkbox" id="e_ht"> Hearts</label></div></div>'+
    '<div class="chs"><label><input type="checkbox" id="e_act"> Active</label><label><input type="checkbox" id="e_sur"> Surprise screen</label><label><input type="checkbox" id="e_th"> Chat theme</label></div>'+
    '<label class="fl"><span>Priority (smaller shows first)</span><input id="e_pri" type="number" min="1" max="9"></label>'+
    '<label class="fl"><span>Gift</span><select id="e_gt"><option value="">None</option><option value="card">Gift card</option><option value="coupon">Coupon</option></select></label><div id="e_g" class="gbox"></div></div>';
@@ -557,11 +566,24 @@ function ed(idx,kind){
   const v=(id,x)=>{$(id).value=x==null?"":x},c=(id,x)=>{$(id).checked=!!x};
   v("e_title",ev.title);v("e_name",ev.name);v("e_rep",ev.repeat);v("e_mon",ev.month||1);v("e_day",ev.day);v("e_yr",ev.year);
   v("e_skip",(ev.skipMonths||[]).join(","));v("e_start",ev.start);v("e_lab",ev.counterLabel);v("e_let",ev.letter);v("e_msg",(ev.messages||[]).join("\n"));
-  c("e_fw",(ev.effects||[]).includes("fireworks"));c("e_cf",(ev.effects||[]).includes("confetti"));c("e_pt",(ev.effects||[]).includes("petals"));
+  c("e_fw",(ev.effects||[]).includes("fireworks"));c("e_cf",(ev.effects||[]).includes("confetti"));c("e_pt",(ev.effects||[]).includes("petals"));c("e_bl",(ev.effects||[]).includes("balloons"));c("e_ht",(ev.effects||[]).includes("hearts"));
+  v("e_tpl",tplGuess(ev));
   c("e_act",ev.active!==false);c("e_sur",ev.surprise!==false);c("e_th",ev.chatTheme!==false);v("e_pri",ev.priority||5);v("e_gt",g.type||"");
 
+  const FX={e_fw:"fireworks",e_cf:"confetti",e_pt:"petals",e_bl:"balloons",e_ht:"hearts"};
+  const tplUi=(apply)=>{
+    const tp=TPL[$("e_tpl").value];
+    $("e_lab").placeholder=tp.lab||"(none)";
+    if(!apply)return;
+    const cur=$("e_title").value.trim();
+    if(!cur||Object.values(TPL).some(x=>x.title===cur))$("e_title").value=tp.title;   // sirf default title badlo, tumhara apna nahi
+    for(const id in FX)$(id).checked=tp.fx.includes(FX[id]);
+    if($("e_tpl").value==="monthsary"&&$("e_rep").value!=="monthly"){$("e_rep").value="monthly";rule()}
+    if($("e_tpl").value==="birthday"&&$("e_rep").value==="monthly"){$("e_rep").value="yearly";rule()}
+  };
   const rule=()=>{const r=$("e_rep").value;$("e_mw").style.display=r==="monthly"?"none":"";$("e_yw").style.display=r==="none"?"":"none"};
   $("e_rep").onchange=rule;rule();
+  $("e_tpl").onchange=()=>tplUi(true);tplUi(false);
 
   const GF={card:[["brand","Brand"],["amount","Amount"],["note","Note"],["code","Code"],["pin","PIN"],["expires","Valid till"],["link","Redeem link (https://...)"],["linkText","Button text"]],
             coupon:[["title","Coupon title"],["note","Note"],["terms","Terms"]]},GC=[["envelopeText","Text above envelope"],["heading","Heading on card"]];
@@ -610,10 +632,10 @@ function ed(idx,kind){
   const close=()=>w.remove();
   $("e_x").onclick=close;
   $("e_s").onclick=()=>{
-    const o={id:ev.id,title:$("e_title").value.trim(),name:$("e_name").value.trim(),repeat:$("e_rep").value,
+    const o={id:ev.id,template:$("e_tpl").value,title:$("e_title").value.trim(),name:$("e_name").value.trim(),repeat:$("e_rep").value,
       day:+$("e_day").value,priority:+$("e_pri").value||5,start:$("e_start").value,counterLabel:$("e_lab").value.trim(),
       letter:$("e_let").value.trim(),messages:$("e_msg").value.split("\n").map(s=>s.trim()).filter(Boolean),photos:ph,
-      effects:[["e_fw","fireworks"],["e_cf","confetti"],["e_pt","petals"]].filter(x=>$(x[0]).checked).map(x=>x[1]),
+      effects:[["e_fw","fireworks"],["e_cf","confetti"],["e_pt","petals"],["e_bl","balloons"],["e_ht","hearts"]].filter(x=>$(x[0]).checked).map(x=>x[1]),
       active:$("e_act").checked,surprise:$("e_sur").checked,chatTheme:$("e_th").checked,
       skipMonths:$("e_skip").value.split(",").map(s=>+s.trim()).filter(n=>n>=1&&n<=12)};
     if(o.repeat!=="monthly")o.month=+$("e_mon").value;
