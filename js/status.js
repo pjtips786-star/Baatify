@@ -36,7 +36,7 @@ const viewersNow=()=>{
 };
 async function post(o){
   const v=viewersNow();
-  if(!v.length)throw new Error("Abhi kisi se chat nahi hai");
+  if(!v.length)throw new Error("You have no chats yet");
   await addDoc(collection(db,"status"),{
     uid:me.uid,name:me.name,photo:me.photo||"",viewers:v,
     createdAt:serverTimestamp(),expiresAt:Timestamp.fromMillis(now()+HOURS*36e5),...o});
@@ -68,7 +68,7 @@ async function upload(file,say){
   });
 }
 
-/* ---------- composer (naya status) ---------- */
+/* ---------- composer (New Status) ---------- */
 function css(){
   if($("stcss"))return;
   const s=E("style");s.id="stcss";
@@ -97,19 +97,19 @@ function css(){
 #stsh .nt{font-size:13px;opacity:.75;min-height:18px}`;
   document.head.appendChild(s);
 }
-const agoText=t=>{const m=Math.round((now()-ms(t))/6e4);return m<1?"abhi":m<60?m+" min pehle":Math.floor(m/60)+" ghante pehle"};
+const agoText=t=>{const m=Math.round((now()-ms(t))/6e4);return m<1?"Just now":m<60?m+" min ago":Math.floor(m/60)+" hours ago"};
 function toast(t){const e=$("toast");if(!e){alert(t);return}e.textContent=t;e.classList.add("on");setTimeout(()=>e.classList.remove("on"),3000)}
 
 function openComposer(){
   if($("stsh"))return;css();
   let mode="text",bg=0,file=null,busy=false;
   const w=E("div");w.id="stsh";
-  w.innerHTML='<div class="bx" role="dialog" aria-label="Naya status"><div class="hd"><span>Naya status</span><button type="button" id="st_x" aria-label="Close">✕</button></div>'
+  w.innerHTML='<div class="bx" role="dialog" aria-label="New Status"><div class="hd"><span>New Status</span><button type="button" id="st_x" aria-label="Close">✕</button></div>'
    +'<div class="tb"><button type="button" data-m="text" class="on">Text</button><button type="button" data-m="photo">Photo</button></div>'
    +'<div class="pv" id="st_pv"></div><div class="sw" id="st_sw"></div>'
    +'<input type="text" id="st_cap" maxlength="200" placeholder="Caption (optional)" style="display:none">'
    +'<input type="file" id="st_f" accept="image/*" style="display:none">'
-   +'<div class="nt" id="st_nt"></div><button type="button" class="go" id="st_go">Post (24 ghante)</button>'
+   +'<div class="nt" id="st_nt"></div><button type="button" class="go" id="st_go">Post (24 hours)</button>'
    +'<div class="ms" id="st_ms"></div></div>';
   document.body.appendChild(w);
   const say=t=>{$("st_nt").textContent=t};
@@ -118,11 +118,11 @@ function openComposer(){
     $("st_sw").style.display=mode==="text"?"":"none";$("st_cap").style.display=mode==="photo"?"":"none";
     if(mode==="text"){
       pv.style.background=BG[bg];
-      const t=E("textarea");t.id="st_t";t.maxLength=700;t.placeholder="Kuch likho…";pv.appendChild(t);
+      const t=E("textarea");t.id="st_t";t.maxLength=700;t.placeholder="Write something…";pv.appendChild(t);
     }else if(file){
       const im=new Image();im.alt="";im.src=URL.createObjectURL(file);pv.appendChild(im);
     }else{
-      const b=E("button","pk","Photo chuno");b.type="button";b.onclick=()=>$("st_f").click();pv.appendChild(b);
+      const b=E("button","pk","Choose Photo");b.type="button";b.onclick=()=>$("st_f").click();pv.appendChild(b);
     }
   };
   const sw=$("st_sw");
@@ -137,26 +137,26 @@ function openComposer(){
   $("st_go").onclick=async()=>{
     if(busy)return;
     try{
-      busy=true;$("st_go").disabled=true;say("Bhej raha hun…");
+      busy=true;$("st_go").disabled=true;say("Posting…");
       if(mode==="text"){
-        const t=($("st_t").value||"").trim();if(!t)throw new Error("Kuch likho");
+        const t=($("st_t").value||"").trim();if(!t)throw new Error("Please enter some text");
         await postText(t,BG[bg]);
       }else{
-        if(!file)throw new Error("Photo chuno");
+        if(!file)throw new Error("Please choose a photo");
         const url=await upload(file,say);
         await postPhoto(url,$("st_cap").value);
       }
-      busy=false;w.remove();toast("Status laga diya ✓");
+      busy=false;w.remove();toast("Status posted ✓");
     }catch(e){busy=false;$("st_go").disabled=false;say("");toast(e.message||"Error")}
   };
   /* mere active status: dekho aur hatao */
   const un=onStatus(({mine:m})=>{
     if(!document.body.contains(w)){un();return}
     const box=$("st_ms");box.textContent="";
-    if(m.length)box.appendChild(E("div","nt","Mere status ("+m.length+")"));
+    if(m.length)box.appendChild(E("div","nt","My Status ("+m.length+")"));
     m.slice().reverse().forEach(s=>{
       const r=E("div"),b=E("b",null,(s.type==="photo"?"🖼 ":"")+(s.type==="photo"?(s.caption||"Photo"):s.text)),a=E("small",null,agoText(s.createdAt)),x=E("button",null,"Delete");
-      x.type="button";x.onclick=async()=>{x.disabled=true;try{await removeStatus(s.id)}catch(e){toast("Delete nahi hua");x.disabled=false}};
+      x.type="button";x.onclick=async()=>{x.disabled=true;try{await removeStatus(s.id)}catch(e){toast("Failed to delete");x.disabled=false}};
       r.append(b,a,x);box.appendChild(r);
     });
   });
@@ -281,13 +281,13 @@ function openViewer(groups,gi,si){
     }else{
       recordView(s);
       const inp=E("input");inp.type="text";inp.maxLength=500;inp.placeholder="Reply\u2026";inp.autocomplete="off";
-      const b=E("button",null,"Bhejo");b.type="button";
+      const b=E("button",null,"Send");b.type="button";
       inp.onfocus=()=>{uiHold=true};inp.onblur=()=>{uiHold=false};
       const go2=async()=>{
         const t=inp.value.trim();if(!t||b.disabled)return;
         b.disabled=true;
-        try{await sendReply(s,t);inp.value="";inp.blur();toast("Reply bhej diya \u2713")}
-        catch(e){toast("Reply nahi gaya")}
+        try{await sendReply(s,t);inp.value="";inp.blur();toast("Reply sent \u2713")}
+        catch(e){toast("Failed to send reply")}
         b.disabled=false;
       };
       b.onclick=go2;inp.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();go2()}};
@@ -298,7 +298,7 @@ function openViewer(groups,gi,si){
     p.textContent="";
     const h=E("h4",null,"Seen by "+vdocs.length),x=E("button",null,"\u2715");x.type="button";
     x.onclick=()=>{p.remove();uiHold=false};h.appendChild(x);p.appendChild(h);
-    if(!vdocs.length)p.appendChild(E("p",null,"Abhi tak kisi ne nahi dekha"));
+    if(!vdocs.length)p.appendChild(E("p",null,"No views yet"));
     vdocs.forEach(d=>{
       const r=E("div","r"),a=E("div","stc");setAv(a,d.name,d.photo);
       r.append(a,E("span",null,d.name||"User"),E("small",null,agoText(d.at)));p.appendChild(r);
@@ -306,9 +306,9 @@ function openViewer(groups,gi,si){
   };
   dl.onclick=async()=>{
     const s=groups[gi][si];
-    if(!confirm("Ye status delete karein?"))return;
+    if(!confirm("Delete this status?"))return;
     uiHold=true;
-    try{await removeStatus(s.id)}catch(e){toast("Delete nahi hua");uiHold=false;return}
+    try{await removeStatus(s.id)}catch(e){toast("Failed to delete");uiHold=false;return}
     groups[gi].splice(si,1);uiHold=false;
     if(!groups[gi].length){close();return}
     if(si>=groups[gi].length)si=groups[gi].length-1;
@@ -317,7 +317,7 @@ function openViewer(groups,gi,si){
   const show=()=>{
     const g=groups[gi],s=g[si];
     run=false;cancelAnimationFrame(raf);bars();
-    setAv(av,s.name,s.photo);nm.textContent=s.uid===me.uid?"Mera status":s.name;tm.textContent=agoText(s.createdAt);
+    setAv(av,s.name,s.photo);nm.textContent=s.uid===me.uid?"My Status":s.name;tm.textContent=agoText(s.createdAt);
     sg.textContent="";sg.className="sg fa";sg.style.background="";
     markSeen(s.id);
     side(s);
@@ -357,7 +357,7 @@ function openViewer(groups,gi,si){
   show();
 }
 
-/* ---------- chat list ke upar status row ---------- */
+/* ---------- Status row above the chat list ---------- */
 let strip=null,snap={mine:[],groups:[]};
 function renderStrip(){
   if(!strip)return;
@@ -369,7 +369,7 @@ function renderStrip(){
     if(plus){const p=E("span","stp","+");p.onclick=e=>{e.stopPropagation();openComposer()};r.appendChild(p)}
     b.append(r,E("small",null,label));b.onclick=click;strip.appendChild(b);
   };
-  item("Mera status",me.name,me.photo,m.length?"":"none",
+  item("My Status",me.name,me.photo,m.length?"":"none",
     ()=>{m.length?openViewer([m],0,0):openComposer()},true);
   snap.groups.forEach((g,gi)=>{
     const unseen=g.findIndex(s=>!seen.has(s.id)),l=g[g.length-1];
@@ -383,7 +383,7 @@ export function initStatus(user,chatsFn){
   watch();
   const head=document.querySelector("#side>header"),anchor=$("adm")||$("out");
   if(head&&!$("stbtn")){
-    const b=E("button","ic");b.id="stbtn";b.type="button";b.setAttribute("aria-label","Naya status");
+    const b=E("button","ic");b.id="stbtn";b.type="button";b.setAttribute("aria-label","New Status");
     b.innerHTML='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9" stroke-dasharray="4 3"/><path d="M12 8v8M8 12h8"/></svg>';
     b.onclick=openComposer;
     head.insertBefore(b,anchor);
