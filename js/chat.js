@@ -128,7 +128,8 @@ async function boot(u){
   if(qa)window.__autoAnswer=qa;
   initCalls({uid:me.uid,name:me.name,photo:me.photo||""});
   import("./celebrate.js"+V).then(m=>m.check(me.uid)).catch(()=>{});
-  
+  import("./status.js"+V).then(m=>m.initStatus({uid:me.uid,name:me.name,photo:me.photo||""},()=>chatsAll)).catch(()=>{});
+
   if(me.uid===OWNER_UID)show("adm",1);
   try{if(window.Android&&Android.setUser){Android.setUser(me.uid);Android.requestToken()}}catch(e){}
   pres(true);clearInterval(hb);hb=setInterval(()=>{if(!document.hidden)pres(true)},180000);
@@ -1307,6 +1308,7 @@ async function sendPush(o){
 }
 window.__pushCall=(toUid,type,callId)=>sendPush({toUid,kind:"call",type,callId});
 window.__pushCallEnd=(toUid,callId)=>sendPush({toUid,kind:"callend",callId});
+window.__stPush=(toUid,text)=>sendPush({toUid,kind:"msg",text});
 
 // app is phone ka token deta hai: us account ke naam par save karo
 window.__fcmToken=async t=>{
