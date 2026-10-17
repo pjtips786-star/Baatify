@@ -1,7 +1,7 @@
 /* ===== hdsvg.js: header me svg profile icon se admin icon tak left-right chalta rahe ===== */
 const SRC="assets/bird.svg";      // <-- yahan apni svg ka naam likho (assets folder me)
-const SIZE=50;                      // <-- svg ka size (px) yahan se chhota-bada karo
-const SECS=3;                       // <-- ek taraf se doosri taraf aur wapas aane ka time (sec)
+const SIZE=65;                      // <-- svg ka size (px) yahan se chhota-bada karo
+const SECS=15;                       // <-- ek taraf se doosri taraf aur wapas aane ka time (sec)
 
 const head=document.querySelector("#side>header");
 const av=document.getElementById("me");
