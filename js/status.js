@@ -155,12 +155,12 @@ function css(){
 #stv .pb{display:flex;gap:4px;padding:calc(8px + env(safe-area-inset-top,0px)) 10px 0;position:relative;z-index:3}
 #stv .pb i{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.35);overflow:hidden}
 #stv .pb i b{display:block;height:100%;width:0;background:#fff}
-#stv .hd2{display:flex;align-items:center;gap:10px;padding:10px 12px;position:relative;z-index:3;text-shadow:0 1px 4px rgba(0,0,0,.6)}
-#stv .hd2 .stc{width:38px;height:38px;flex:none;border:0}
-#stv .hd2 .meta{flex:1;min-width:0;line-height:1.25}
-#stv .hd2 b{display:block;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#stv .hd2 small{opacity:.85;font-size:12px}
-#stv .hd2 button{border:0;background:none;color:#fff;padding:8px;border-radius:50%;cursor:pointer;display:grid}
+#stv .hd2{display:flex;flex-direction:row;justify-content:flex-start;align-items:center;gap:10px;padding:10px 12px;text-align:left;position:relative;z-index:3;text-shadow:0 1px 4px rgba(0,0,0,.6)}
+#stv .hd2 .stc{width:40px;height:40px;flex:none;border:0;order:0}
+#stv .hd2 .meta{order:1;flex:1 1 auto;min-width:0;line-height:1.25;display:flex;flex-direction:column;align-items:flex-start;text-align:left;margin:0 auto 0 0}
+#stv .hd2 b{display:block;flex:none;max-width:100%;margin:0;text-align:left;font-size:16px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#stv .hd2 small{display:block;margin:0;text-align:left;opacity:.85;font-size:12px}
+#stv .hd2 button{order:2;flex:none;border:0;background:none;color:#fff;padding:8px;border-radius:50%;cursor:pointer;display:grid}
 #stv .hd2 button[hidden]{display:none}
 #stv .sg{position:absolute;inset:0;display:grid;place-items:center;overflow:hidden;touch-action:none}
 #stv .sg img{width:100%;height:100%;object-fit:contain;pointer-events:none;-webkit-user-drag:none}
