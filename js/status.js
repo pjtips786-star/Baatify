@@ -147,7 +147,7 @@ function css(){
 #sttoast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translate(-50%,12px);z-index:300;display:flex;align-items:center;gap:8px;max-width:calc(100% - 40px);background:rgba(32,44,51,.96);color:#fff;border-radius:24px;padding:11px 18px;font:600 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
 #sttoast.on{opacity:1;transform:translate(-50%,0)}
 #sttoast svg{color:#2fe09a}
-/* ===== status row =====
+/* ===== status row ===== */
 #strow{display:flex;gap:14px;overflow-x:auto;padding:10px 12px 8px;flex:none;scrollbar-width:none;border-bottom:1px solid var(--line,#222d34)}
 #strow::-webkit-scrollbar{display:none}
 #strow.hide{display:none}
