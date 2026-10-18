@@ -127,7 +127,7 @@ function render(){
   const q=s=>bar.querySelector(s);
   q(".tgd i").textContent=MON[when.getUTCMonth()].toUpperCase();
   q(".tgd b").textContent=when.getUTCDate();
-  q(".tgm small").textContent="Next event";
+
   q(".tgm b").textContent=nxt.e.title||nxt.e.name||"Special day";
   q(".tgm span").textContent=nxt.d===0?"Today":nxt.d===1?"Tomorrow":"In "+nxt.d+" days";
   bar.classList.toggle("now",nxt.d===0);
