@@ -10,10 +10,11 @@ const {db}=await import("./firebase.js"+(window.V||""));
 const IST=19800000;
 const CACHE="bt_tg";                    // localStorage cache of the events
 const FRESH=10*60*1000;                 // re-read Firestore at most every 10 min
-const FALLBACK={start:"2024-05-22",title:"Anniversary",month:5,day:22};   // used only if the admin has no event yet; set start:"" to turn off
+const FALLBACK={start:"",title:"Anniversary",month:5,day:22};   // optional: set start:"2024-05-22" to show an anniversary even when no event exists. Off by default
 const ONLY_UIDS=["sOxXSasa0ANEiATQhIMPi1HXT7l1"];          // <-- put the person's UID here (Firebase console > Authentication > Users > "User UID"). Names are looked up from users/{uid}, so a renamed profile still works
 const ONLY_NAMES=[];           // optional fallback when ONLY_UIDS is empty: header-name words, e.g. ["Baby"]
 const WHO=ONLY_UIDS.filter(Boolean);
+let peers=WHO;                 // WHO without my own uid (set in initTogether)
 let wnames=[];                 // current names of those UIDs (filled at start)
 const MODE="bt_tg_mode";                // "d" (days) or "ymd"
 const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -64,15 +65,19 @@ function parseDoc(d){
   }else{try{j=JSON.parse(d.json||"[]")}catch(e){j=[]}}
   return Array.isArray(j)?j:[];
 }
-async function events(uid){
+async function events(uid,others){
+  const key=uid+"|"+others.join(",");
   try{
     const c=JSON.parse(localStorage.getItem(CACHE)||"null");
-    if(c&&c.uid===uid&&Date.now()-c.at<FRESH)return c.evs;
+    if(c&&c.key===key&&Date.now()-c.at<FRESH)return c.evs;
   }catch(e){}
-  const s=await getDoc(doc(db,"celebrations",uid));
-  const evs=s.exists()?parseDoc(s.data()):[];
+  /* own doc (what the other person's admin gave me) + the selected people's docs (only admins are allowed to read those) */
+  const ids=[uid].concat(others),all=[];
+  await Promise.all(ids.map(u=>getDoc(doc(db,"celebrations",u)).then(x=>{if(x.exists())all.push(...parseDoc(x.data()))}).catch(()=>{})));
+  const seen=new Set(),evs=[];
+  all.forEach(e=>{const k=(e.id||"")+"|"+(e.title||"")+"|"+e.repeat+"|"+e.month+"|"+e.day;if(!seen.has(k)){seen.add(k);evs.push(e)}});
   if(!evs.length)return evs;                                  // never cache an empty answer
-  try{localStorage.setItem(CACHE,JSON.stringify({uid,at:Date.now(),evs:evs.map(e=>({id:e.id,title:e.title,name:e.name,template:e.template,repeat:e.repeat,day:e.day,month:e.month,year:e.year,start:e.start,active:e.active,skipMonths:e.skipMonths}))}))}catch(e){}
+  try{localStorage.setItem(CACHE,JSON.stringify({key,at:Date.now(),evs:evs.map(e=>({id:e.id,title:e.title,name:e.name,template:e.template,repeat:e.repeat,day:e.day,month:e.month,year:e.year,start:e.start,active:e.active,skipMonths:e.skipMonths}))}))}catch(e){}
   return evs;
 }
 
@@ -102,8 +107,8 @@ function css(){
 /* is the open chat one of the selected people? (looks at the chat header text) */
 let lastKey="";
 function peerOk(){
-  const list=WHO.length?wnames:ONLY_NAMES;
-  if(!WHO.length&&!ONLY_NAMES.length)return true;
+  const list=peers.length?wnames:ONLY_NAMES;
+  if(!peers.length&&!ONLY_NAMES.length)return true;
   if(!list.length)return false;
   const h=$("pane")&&$("pane").querySelector("header");
   const t=((h&&h.textContent)||"").toLowerCase();
@@ -148,7 +153,7 @@ function schedule(){
 
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 export async function initTogether(uid){
-  uidNow=uid;
+  uidNow=uid;peers=WHO.filter(u=>u!==uid);        // on the selected person's own phone there is nothing to filter
   for(let k=0;k<50&&!($("pane")&&$("msgs"));k++)await wait(100);   // chat.html may not be ready yet
   const pane=$("pane"),msgs=$("msgs");
   if(!pane||!msgs){console.warn("[together] #pane / #msgs not found");return}
@@ -164,12 +169,12 @@ export async function initTogether(uid){
   const put=()=>{if(bar.parentNode!==pane||bar.nextSibling!==$("msgs"))pane.insertBefore(bar,$("msgs")||null)};
   put();
   new MutationObserver(()=>{if(!bar.isConnected||bar.parentNode!==pane)put()}).observe(pane,{childList:true});   // survive re-renders
-  if(WHO.length){
-    const got=await Promise.all(WHO.map(u=>getDoc(doc(db,"users",u)).then(x=>x.exists()?x.data():{}).catch(()=>({}))));
+  if(peers.length){
+    const got=await Promise.all(peers.map(u=>getDoc(doc(db,"users",u)).then(x=>x.exists()?x.data():{}).catch(()=>({}))));
     wnames=[];got.forEach(d=>{if(d.name)wnames.push(d.name);if(d.username)wnames.push(d.username)});
     if(!wnames.length)console.warn("[together] could not find a user for ONLY_UIDS");
   }
-  try{evs=await events(uid)}catch(e){console.warn("[together] could not read celebrations:",e&&e.message);evs=[]}
+  try{evs=await events(uid,peers)}catch(e){console.warn("[together] could not read celebrations:",e&&e.message);evs=[]}
   if(!evs.some(e=>e.start)&&FALLBACK.start)evs=evs.concat([{title:FALLBACK.title,template:"anniversary",repeat:"yearly",day:FALLBACK.day,month:FALLBACK.month,start:FALLBACK.start,active:true}]);
   render();schedule();
   setInterval(()=>{                                   // chat switched? header text changes
