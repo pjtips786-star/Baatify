@@ -22,6 +22,7 @@ const IC={
   image:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>',
   type:'<path d="M4 7V4h16v3M9 20h6M12 4v16"/>',
   up:'<path d="M6 15l6-6 6 6"/>',
+  check:'<path d="M20 6L9 17l-5-5"/>',
   ring:'<circle cx="12" cy="12" r="9" stroke-dasharray="4 3"/><path d="M12 8v8M8 12h8"/>'
 };
 const icon=(n,s)=>'<svg class="sic" viewBox="0 0 24 24" width="'+(s||20)+'" height="'+(s||20)+'" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+IC[n]+'</svg>';
@@ -30,7 +31,15 @@ let me=null,getChats=()=>[],mine=[],others=[],subs=[],listeners=new Set();
 const now=()=>Date.now();
 const ms=t=>t&&t.toMillis?t.toMillis():0;
 const agoText=t=>{const m=Math.round((now()-ms(t))/6e4);return m<1?"Just now":m<60?m+" min ago":Math.floor(m/60)+" h ago"};
-function toast(t){const e=$("toast");if(!e){alert(t);return}e.textContent=t;e.classList.add("on");setTimeout(()=>e.classList.remove("on"),3000)}
+let tt=0;
+function toast(t,ok){                                    // own toast: always above the viewer and composer
+  css();
+  let e=$("sttoast");
+  if(!e){e=E("div");e.id="sttoast";e.setAttribute("role","status");document.body.appendChild(e)}
+  e.innerHTML=(ok?icon("check",18):"")+"<span></span>";e.lastChild.textContent=t;
+  e.classList.remove("on");void e.offsetWidth;e.classList.add("on");
+  clearTimeout(tt);tt=setTimeout(()=>e.classList.remove("on"),2600);
+}
 
 /* ---------- Back button support: overlays form a stack, Back closes the top one ---------- */
 const layers=[];let ign=0;
@@ -103,37 +112,41 @@ async function upload(file,say){
   });
 }
 
-/* ---------- styles ---------- */
+/* ---------- styles (all class names are prefixed "st" so nothing clashes with chat.css) ---------- */
 function css(){
   if($("stcss"))return;
   const s=E("style");s.id="stcss";
   s.textContent=`
 .sic{display:block;flex:none}
-/* composer */
-#stsh{position:fixed;inset:0;z-index:90;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.55);animation:stfa .2s ease}
-#stsh .bx{width:min(100%,520px);max-height:92vh;overflow:auto;background:var(--panel,#202c33);color:var(--text,#e9edef);border-radius:18px 18px 0 0;padding:14px 14px calc(18px + env(safe-area-inset-bottom,0px));display:grid;gap:12px}
-#stsh .hd{display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:16px}
-#stsh .hd button{border:0;background:none;color:inherit;cursor:pointer;padding:6px;border-radius:50%}
-#stsh .tb{display:flex;gap:8px}
-#stsh .tb button,#stsh .pk{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:20px;padding:9px 16px;font:600 14px system-ui,sans-serif;cursor:pointer;background:rgba(255,255,255,.1);color:inherit}
-#stsh .tb button.on{background:var(--g,#00a884);color:#fff}
-#stsh .go{border:0;border-radius:24px;padding:12px 18px;font:600 15px system-ui,sans-serif;cursor:pointer;background:var(--g,#00a884);color:#fff}
-#stsh .go[disabled]{opacity:.5}
-#stsh .pv{aspect-ratio:9/12;max-height:46vh;border-radius:14px;display:grid;place-items:center;padding:18px;text-align:center;overflow:hidden;position:relative;background-size:cover;background-position:center}
-#stsh textarea{width:100%;height:100%;background:none;border:0;outline:0;resize:none;color:#fff;text-align:center;font:600 24px/1.3 system-ui,sans-serif}
-#stsh textarea::placeholder{color:rgba(255,255,255,.65)}
-#stsh .pv img{width:100%;height:100%;object-fit:contain;background:#000}
-#stsh .sw{display:flex;gap:10px;justify-content:center}
-#stsh .sw i{width:28px;height:28px;border-radius:50%;border:2px solid transparent;cursor:pointer}
-#stsh .sw i.on{border-color:#fff}
-#stsh input[type=text]{width:100%;box-sizing:border-box;padding:11px 14px;border-radius:12px;border:0;background:rgba(255,255,255,.1);color:inherit;font:15px system-ui,sans-serif;outline:0}
-#stsh .nt{font-size:13px;opacity:.75;min-height:18px;text-align:center}
-#stsh .ms{display:grid;gap:6px;font-size:14px}
-#stsh .ms>div{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.07);border-radius:10px;padding:8px 10px}
-#stsh .ms b{flex:1;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#stsh .ms small{opacity:.7}
-#stsh .ms button{border:0;background:none;color:#ff6b81;cursor:pointer;padding:4px;display:grid}
-/* status row */
+/* ===== composer (full screen) ===== */
+#stsh{position:fixed;left:0;top:0;right:0;bottom:0;z-index:90;display:flex;flex-direction:column;color:#fff;background:#111;animation:stfa .2s ease;overflow:hidden}
+#stsh .stcbg{position:absolute;inset:0;background:#111 center/cover no-repeat;transition:background .25s}
+#stsh .stctop{position:relative;z-index:2;display:flex;align-items:center;gap:10px;padding:calc(10px + env(safe-area-inset-top,0px)) 12px 10px}
+#stsh .stcx{border:0;background:rgba(0,0,0,.35);color:#fff;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;cursor:pointer}
+#stsh .stcmode{display:flex;gap:4px;margin:0 auto;background:rgba(0,0,0,.35);border-radius:24px;padding:4px}
+#stsh .stcmode button{display:inline-flex;align-items:center;gap:6px;border:0;background:none;color:#fff;padding:8px 16px;border-radius:20px;font:600 14px system-ui,sans-serif;cursor:pointer;opacity:.75}
+#stsh .stcmode button.on{background:#fff;color:#111;opacity:1}
+#stsh .stcsp{width:42px}
+#stsh .stcmid{position:relative;z-index:1;flex:1;min-height:0;display:grid;place-items:center;padding:8px 24px}
+#stsh textarea{width:100%;max-height:100%;background:none;border:0;outline:0;resize:none;color:#fff;text-align:center;font:600 30px/1.3 system-ui,sans-serif;overflow:auto}
+#stsh textarea::placeholder{color:rgba(255,255,255,.6)}
+#stsh .stcimg{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+#stsh .stcpick{display:grid;justify-items:center;gap:10px;border:2px dashed rgba(255,255,255,.55);background:rgba(0,0,0,.25);color:#fff;border-radius:20px;padding:30px 34px;font:600 15px system-ui,sans-serif;cursor:pointer}
+#stsh .stcnote{position:relative;z-index:2;text-align:center;font-size:12px;opacity:.8;padding:0 16px 6px;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+#stsh .stcbot{position:relative;z-index:2;display:flex;align-items:center;gap:12px;padding:6px 14px calc(14px + env(safe-area-inset-bottom,0px))}
+#stsh .stcsw{flex:1;min-width:0;display:flex;gap:12px;align-items:center;overflow-x:auto;padding:6px 2px;scrollbar-width:none}
+#stsh .stcsw::-webkit-scrollbar{display:none}
+#stsh .stcsw i{flex:none;width:30px;height:30px;border-radius:50%;border:3px solid rgba(255,255,255,.4);cursor:pointer;transition:transform .15s}
+#stsh .stcsw i.on{border-color:#fff;transform:scale(1.15)}
+#stsh .stccap{flex:1;min-width:0;box-sizing:border-box;border:0;outline:0;border-radius:24px;padding:13px 18px;background:rgba(0,0,0,.45);color:#fff;font:15px system-ui,sans-serif}
+#stsh .stccap::placeholder{color:rgba(255,255,255,.65)}
+#stsh .stcgo{flex:none;border:0;width:54px;height:54px;border-radius:50%;background:var(--g,#00a884);color:#fff;display:grid;place-items:center;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+#stsh .stcgo[disabled]{opacity:.55}
+/* ===== toast ===== */
+#sttoast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translate(-50%,12px);z-index:300;display:flex;align-items:center;gap:8px;max-width:calc(100% - 40px);background:rgba(32,44,51,.96);color:#fff;border-radius:24px;padding:11px 18px;font:600 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
+#sttoast.on{opacity:1;transform:translate(-50%,0)}
+#sttoast svg{color:#2fe09a}
+/* ===== status row =====
 #strow{display:flex;gap:14px;overflow-x:auto;padding:10px 12px 8px;flex:none;scrollbar-width:none;border-bottom:1px solid var(--line,#222d34)}
 #strow::-webkit-scrollbar{display:none}
 #strow.hide{display:none}
@@ -145,46 +158,48 @@ function css(){
 .stc{box-sizing:border-box;width:100%;height:100%;border-radius:50%;background:var(--g,#00a884) center/cover no-repeat;border:3px solid var(--side,#111b21);display:grid;place-items:center;color:#fff;font-weight:700;overflow:hidden}
 .str.none .stc{border:0}
 .stp{position:absolute;right:-3px;bottom:-3px;width:22px;height:22px;border-radius:50%;background:var(--g,#00a884);color:#fff;display:grid;place-items:center;border:2px solid var(--side,#111b21)}
-/* viewer */
-#stv{position:fixed;inset:0;z-index:95;background:#000;color:#fff;display:flex;flex-direction:column;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;animation:stin .22s ease;transition:opacity .2s}
-#stv.out{opacity:0}
-@keyframes stin{from{opacity:0;transform:scale(.97)}}
+/* ===== viewer (full screen) ===== */
+#stv{position:fixed;left:0;top:0;right:0;bottom:0;width:100%;height:100%;min-height:100dvh;margin:0;padding:0;box-sizing:border-box;z-index:95;background:#000;color:#fff;display:flex;flex-direction:column;overflow:hidden;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;animation:stin .22s ease;transition:opacity .2s}
+#stv.st-out{opacity:0}
+@keyframes stin{from{opacity:0}}
 @keyframes stfa{from{opacity:0}}
-#stv .pb,#stv .hd2,#stv .bar{transition:opacity .18s}
-#stv.hold .pb,#stv.hold .hd2,#stv.hold .bar,#stv.hold .cp{opacity:0}
-#stv .pb{display:flex;gap:4px;padding:calc(8px + env(safe-area-inset-top,0px)) 10px 0;position:relative;z-index:3}
-#stv .pb i{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.35);overflow:hidden}
-#stv .pb i b{display:block;height:100%;width:0;background:#fff}
-#stv .hd2{display:flex;flex-direction:row;justify-content:flex-start;align-items:center;gap:10px;padding:10px 12px;text-align:left;position:relative;z-index:3;text-shadow:0 1px 4px rgba(0,0,0,.6)}
-#stv .hd2 .stc{width:40px;height:40px;flex:none;border:0;order:0}
-#stv .hd2 .meta{order:1;flex:1 1 auto;min-width:0;line-height:1.25;display:flex;flex-direction:column;align-items:flex-start;text-align:left;margin:0 auto 0 0}
-#stv .hd2 b{display:block;flex:none;max-width:100%;margin:0;text-align:left;font-size:16px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#stv .hd2 small{display:block;margin:0;text-align:left;opacity:.85;font-size:12px}
-#stv .hd2 button{order:2;flex:none;border:0;background:none;color:#fff;padding:8px;border-radius:50%;cursor:pointer;display:grid}
-#stv .hd2 button[hidden]{display:none}
-#stv .sg{position:absolute;inset:0;display:grid;place-items:center;overflow:hidden;touch-action:none}
-#stv .sg img{width:100%;height:100%;object-fit:contain;pointer-events:none;-webkit-user-drag:none}
-#stv .sg .tx{padding:28px;text-align:center;font:600 28px/1.35 system-ui,sans-serif;word-break:break-word;white-space:pre-wrap;max-height:100%;overflow:hidden;pointer-events:none}
-#stv .cp{position:absolute;left:0;right:0;bottom:0;padding:40px 18px calc(24px + env(safe-area-inset-bottom,0px));text-align:center;background:linear-gradient(transparent,rgba(0,0,0,.7));font-size:16px;z-index:2;pointer-events:none;transition:opacity .18s}
-#stv.rp .cp{padding-bottom:92px}
-#stv.ow .cp{padding-bottom:80px}
-#stv .bar{position:absolute;left:0;right:0;bottom:0;z-index:4;padding:10px 12px calc(12px + env(safe-area-inset-bottom,0px));display:flex;gap:8px;align-items:center}
-#stv .bar input{flex:1;min-width:0;border:1px solid rgba(255,255,255,.5);background:rgba(0,0,0,.35);color:#fff;border-radius:24px;padding:11px 16px;font:15px system-ui,sans-serif;outline:0;-webkit-user-select:text;user-select:text}
-#stv .bar input::placeholder{color:rgba(255,255,255,.7)}
-#stv .bar .sd{border:0;border-radius:50%;width:44px;height:44px;background:var(--g,#00a884);color:#fff;cursor:pointer;display:grid;place-items:center;flex:none}
-#stv .bar .sd[disabled]{opacity:.5}
-#stv .vw{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:24px;padding:10px 16px;background:rgba(0,0,0,.45);color:#fff;font:600 15px system-ui,sans-serif;cursor:pointer}
-#stv .vl{position:absolute;left:0;right:0;bottom:0;z-index:6;max-height:62%;overflow:auto;background:var(--panel,#202c33);color:var(--text,#e9edef);border-radius:18px 18px 0 0;padding:8px 14px calc(16px + env(safe-area-inset-bottom,0px));display:grid;gap:8px;animation:stfa .2s ease;touch-action:pan-y}
-#stv .vl .gr{width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,.3);margin:0 auto 4px}
-#stv .vl h4{margin:0 0 4px;font:700 15px system-ui,sans-serif;display:flex;align-items:center;justify-content:space-between}
-#stv .vl h4 button{border:0;background:none;color:inherit;cursor:pointer;padding:4px;display:grid}
-#stv .vl .r{display:flex;align-items:center;gap:10px;font:14px system-ui,sans-serif}
-#stv .vl .stc{width:42px;height:42px;border:0;flex:none}
-#stv .vl .nm{font-weight:600;font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#stv .vl small{margin-left:auto;opacity:.7}
-#stv .vl p{margin:0;opacity:.7;font:14px system-ui,sans-serif}`;
+#stv .stpb,#stv .sthd,#stv .stbar,#stv .stcp{transition:opacity .18s}
+#stv.st-hold .stpb,#stv.st-hold .sthd,#stv.st-hold .stbar,#stv.st-hold .stcp{opacity:0}
+#stv .stpb{display:flex;gap:4px;padding:calc(8px + env(safe-area-inset-top,0px)) 10px 0;position:relative;z-index:3}
+#stv .stpb i{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.35);overflow:hidden}
+#stv .stpb i b{display:block;height:100%;width:0;background:#fff}
+#stv .sthd{display:flex;flex-direction:row;justify-content:flex-start;align-items:center;gap:10px;padding:10px 12px;text-align:left;position:relative;z-index:3;text-shadow:0 1px 4px rgba(0,0,0,.6)}
+#stv .sthd .stc{width:40px;height:40px;flex:none;border:0;order:0}
+#stv .stmeta{order:1;flex:1 1 auto;min-width:0;line-height:1.25;display:flex;flex-direction:column;align-items:flex-start;text-align:left;margin:0 auto 0 0}
+#stv .stmeta b{display:block;flex:none;max-width:100%;margin:0;text-align:left;font-size:16px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#stv .stmeta small{display:block;margin:0;text-align:left;opacity:.85;font-size:12px}
+#stv .sthd button{order:2;flex:none;border:0;background:none;color:#fff;padding:8px;border-radius:50%;cursor:pointer;display:grid}
+#stv .sthd button[hidden]{display:none}
+#stv .stsg{position:absolute;left:0;top:0;right:0;bottom:0;display:grid;place-items:center;overflow:hidden;touch-action:none}
+#stv .stblur{position:absolute;inset:-30px;background:center/cover no-repeat;filter:blur(26px) brightness(.55);transform:scale(1.1)}
+#stv .stsg img{position:relative;width:100%;height:100%;object-fit:contain;pointer-events:none;-webkit-user-drag:none}
+#stv .sttx{padding:28px;text-align:center;font:600 28px/1.35 system-ui,sans-serif;word-break:break-word;white-space:pre-wrap;max-height:100%;overflow:hidden;pointer-events:none}
+#stv .stcp{position:absolute;left:0;right:0;bottom:0;padding:40px 18px calc(24px + env(safe-area-inset-bottom,0px));text-align:center;background:linear-gradient(transparent,rgba(0,0,0,.7));font-size:16px;z-index:2;pointer-events:none}
+#stv.st-rp .stcp{padding-bottom:92px}
+#stv.st-ow .stcp{padding-bottom:80px}
+#stv .stbar{position:absolute;left:0;right:0;bottom:0;z-index:4;padding:10px 12px calc(12px + env(safe-area-inset-bottom,0px));display:flex;gap:8px;align-items:center;justify-content:flex-start}
+#stv .stbar input{flex:1;min-width:0;border:1px solid rgba(255,255,255,.5);background:rgba(0,0,0,.35);color:#fff;border-radius:24px;padding:11px 16px;font:15px system-ui,sans-serif;outline:0;-webkit-user-select:text;user-select:text}
+#stv .stbar input::placeholder{color:rgba(255,255,255,.7)}
+#stv .stsd{border:0;border-radius:50%;width:44px;height:44px;background:var(--g,#00a884);color:#fff;cursor:pointer;display:grid;place-items:center;flex:none}
+#stv .stsd[disabled]{opacity:.5}
+#stv .stvw{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:24px;padding:10px 16px;background:rgba(0,0,0,.45);color:#fff;font:600 15px system-ui,sans-serif;cursor:pointer}
+#stv .stvl{position:absolute;left:0;right:0;bottom:0;z-index:6;max-height:62%;overflow:auto;background:var(--panel,#202c33);color:var(--text,#e9edef);border-radius:18px 18px 0 0;padding:8px 14px calc(16px + env(safe-area-inset-bottom,0px));display:grid;gap:8px;animation:stfa .2s ease;touch-action:pan-y}
+#stv .stgr{width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,.3);margin:0 auto 4px}
+#stv .stvl h4{margin:0 0 4px;font:700 15px system-ui,sans-serif;display:flex;align-items:center;justify-content:space-between}
+#stv .stvl h4 button{border:0;background:none;color:inherit;cursor:pointer;padding:4px;display:grid}
+#stv .strw{display:flex;align-items:center;gap:10px;font:14px system-ui,sans-serif}
+#stv .stvl .stc{width:42px;height:42px;border:0;flex:none}
+#stv .stnm{font-weight:600;font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#stv .stvl small{margin-left:auto;opacity:.7}
+#stv .stvl p{margin:0;opacity:.7;font:14px system-ui,sans-serif}`;
   document.head.appendChild(s);
 }
+
 /* latest name + photo of a user (cached), so lists never show a stale name or picture */
 const uc=new Map();
 function userOf(uid){
@@ -196,68 +211,72 @@ const setAv=(el,name,photo)=>{
   else{el.style.backgroundImage="";el.textContent=(name||"?")[0].toUpperCase()}
 };
 
-/* ---------- composer ---------- */
+/* ---------- composer (full screen) ---------- */
 function openComposer(){
   if($("stsh"))return;css();
   let mode="text",bg=0,file=null,busy=false,rel=null,gone=false;
-  const w=E("div");w.id="stsh";
-  w.innerHTML='<div class="bx" role="dialog" aria-label="New status"><div class="hd"><span>New status</span><button type="button" id="st_x" aria-label="Close">'+icon("close")+'</button></div>'
-   +'<div class="tb"><button type="button" data-m="text" class="on">'+icon("type",18)+'Text</button><button type="button" data-m="photo">'+icon("image",18)+'Photo</button></div>'
-   +'<div class="pv" id="st_pv"></div><div class="sw" id="st_sw"></div>'
-   +'<input type="text" id="st_cap" maxlength="200" placeholder="Add a caption (optional)" style="display:none">'
-   +'<input type="file" id="st_f" accept="image/*" style="display:none">'
-   +'<div class="nt" id="st_nt">Visible to your chats for 24 hours</div><button type="button" class="go" id="st_go">Post status</button>'
-   +'<div class="ms" id="st_ms"></div></div>';
+  const w=E("div");w.id="stsh";w.setAttribute("role","dialog");w.setAttribute("aria-label","New status");
+  w.innerHTML='<div class="stcbg" id="st_bg"></div>'
+   +'<div class="stctop"><button type="button" class="stcx" id="st_x" aria-label="Close">'+icon("close",22)+'</button>'
+   +'<div class="stcmode"><button type="button" data-m="text" class="on">'+icon("type",18)+'Text</button><button type="button" data-m="photo">'+icon("image",18)+'Photo</button></div><span class="stcsp"></span></div>'
+   +'<div class="stcmid" id="st_mid"></div>'
+   +'<div class="stcnote" id="st_nt">Visible to your chats for 24 hours</div>'
+   +'<div class="stcbot" id="st_bot"></div>'
+   +'<input type="file" id="st_f" accept="image/*" style="display:none">';
   document.body.appendChild(w);
   const say=t=>{$("st_nt").textContent=t};
+  const NOTE="Visible to your chats for 24 hours";
+  const goBtn=E("button","stcgo");goBtn.type="button";goBtn.innerHTML=icon("send",24);goBtn.setAttribute("aria-label","Post status");
   const draw=()=>{
-    const pv=$("st_pv");pv.textContent="";pv.style.background="";
-    $("st_sw").style.display=mode==="text"?"":"none";$("st_cap").style.display=mode==="photo"?"":"none";
+    const mid=$("st_mid"),bot=$("st_bot"),bgEl=$("st_bg");
+    mid.textContent="";bot.textContent="";
     if(mode==="text"){
-      pv.style.background=BG[bg];
-      const t=E("textarea");t.id="st_t";t.maxLength=700;t.placeholder="Type a status";pv.appendChild(t);
-    }else if(file){
-      const im=new Image();im.alt="";im.src=URL.createObjectURL(file);pv.appendChild(im);
+      bgEl.style.background=BG[bg];
+      const t=E("textarea");t.id="st_t";t.maxLength=700;t.rows=3;t.placeholder="Type a status";
+      t.addEventListener("input",()=>{const n=t.value.length;t.style.fontSize=(n>220?20:n>110?24:30)+"px"});
+      mid.appendChild(t);
+      const sw=E("div","stcsw");
+      BG.forEach((g,i)=>{const d=E("i");d.style.background=g;if(i===bg)d.classList.add("on");d.onclick=()=>{bg=i;bgEl.style.background=g;[...sw.children].forEach((x,j)=>x.classList.toggle("on",j===i))};sw.appendChild(d)});
+      bot.append(sw,goBtn);
+      setTimeout(()=>t.focus(),50);
     }else{
-      const b=E("button","pk");b.type="button";b.innerHTML=icon("image",18)+"Choose a photo";b.onclick=()=>$("st_f").click();pv.appendChild(b);
+      bgEl.style.background="#111";
+      if(file){
+        const u=URL.createObjectURL(file);
+        bgEl.style.background="#111 url("+u+") center/cover no-repeat";
+        const im=new Image();im.className="stcimg";im.alt="";im.src=u;
+        const veil=E("div");veil.style.cssText="position:absolute;inset:0;backdrop-filter:blur(22px) brightness(.55);-webkit-backdrop-filter:blur(22px) brightness(.55)";
+        w.querySelector(".stcmid").append(veil,im);
+        const cap=E("input","stccap");cap.type="text";cap.id="st_cap";cap.maxLength=200;cap.placeholder="Add a caption…";
+        bot.append(cap,goBtn);
+      }else{
+        const b=E("button","stcpick");b.type="button";b.innerHTML=icon("image",40)+"<span>Choose a photo</span>";b.onclick=()=>$("st_f").click();mid.appendChild(b);
+      }
     }
   };
-  const sw=$("st_sw");
-  BG.forEach((g,i)=>{const d=E("i");d.style.background=g;d.onclick=()=>{bg=i;[...sw.children].forEach((x,j)=>x.classList.toggle("on",j===i));$("st_pv").style.background=g};sw.appendChild(d)});
-  sw.firstChild.classList.add("on");
-  w.querySelectorAll(".tb button").forEach(b=>b.onclick=()=>{
-    mode=b.dataset.m;w.querySelectorAll(".tb button").forEach(x=>x.classList.toggle("on",x===b));draw();
+  w.querySelectorAll(".stcmode button").forEach(b=>b.onclick=()=>{
+    mode=b.dataset.m;w.querySelectorAll(".stcmode button").forEach(x=>x.classList.toggle("on",x===b));draw();
   });
   $("st_f").onchange=()=>{file=$("st_f").files[0]||null;draw()};
-  const close=()=>{if(gone)return;gone=true;un();w.remove()};
-  rel=pushLayer(()=>{if(!busy)close();else gone=false});            // Back button
+  const close=()=>{if(gone)return;gone=true;w.remove()};
+  rel=pushLayer(()=>{if(!busy)close()});                              // Back button
   const ui=()=>{if(busy)return;rel();close()};
-  $("st_x").onclick=ui;w.onclick=e=>{if(e.target===w)ui()};
-  $("st_go").onclick=async()=>{
+  $("st_x").onclick=ui;
+  goBtn.onclick=async()=>{
     if(busy)return;
     try{
-      busy=true;$("st_go").disabled=true;say("Posting…");
+      busy=true;goBtn.disabled=true;say("Posting…");
       if(mode==="text"){
         const t=($("st_t").value||"").trim();if(!t)throw new Error("Type something first");
         await postText(t,BG[bg]);
       }else{
         if(!file)throw new Error("Choose a photo first");
         const url=await upload(file,say);
-        await postPhoto(url,$("st_cap").value);
+        await postPhoto(url,($("st_cap")||{}).value);
       }
-      busy=false;rel();close();toast("Status posted");
-    }catch(e){busy=false;$("st_go").disabled=false;say("Visible to your chats for 24 hours");toast(e.message||"Could not post status")}
+      busy=false;rel();close();toast("Status posted",true);
+    }catch(e){busy=false;goBtn.disabled=false;say(NOTE);toast(e.message||"Could not post status")}
   };
-  const un=onStatus(({mine:m})=>{
-    const box=$("st_ms");if(!box)return;box.textContent="";
-    if(m.length)box.appendChild(E("div","nt","My status ("+m.length+")"));
-    m.slice().reverse().forEach(s=>{
-      const r=E("div"),b=E("b",null,s.type==="photo"?(s.caption||"Photo"):s.text),a=E("small",null,agoText(s.createdAt)),x=E("button");
-      x.type="button";x.innerHTML=icon("trash",18);x.setAttribute("aria-label","Delete status");
-      x.onclick=async()=>{x.disabled=true;try{await removeStatus(s.id)}catch(e){toast("Could not delete status");x.disabled=false}};
-      r.append(b,a,x);box.appendChild(r);
-    });
-  });
   draw();
 }
 
@@ -284,18 +303,18 @@ function openViewer(groups,gi,si){
   if($("stv")||!groups[gi])return;css();
   const ovf=document.documentElement.style.overflow;document.documentElement.style.overflow="hidden";
   const el=E("div");el.id="stv";el.setAttribute("role","dialog");el.setAttribute("aria-label","Status");
-  el.innerHTML='<div class="pb"></div><div class="hd2"><div class="stc"></div><div class="meta"><b></b><small></small></div>'
-    +'<button type="button" class="dl" aria-label="Delete status" hidden>'+icon("trash",22)+'</button>'
-    +'<button type="button" class="cl" aria-label="Close">'+icon("close",24)+'</button></div><div class="sg"></div><div class="bar"></div>';
+  el.innerHTML='<div class="stpb"></div><div class="sthd"><div class="stc"></div><div class="stmeta"><b></b><small></small></div>'
+    +'<button type="button" class="stdl" aria-label="Delete status" hidden>'+icon("trash",22)+'</button>'
+    +'<button type="button" class="stcl" aria-label="Close">'+icon("close",24)+'</button></div><div class="stsg"></div><div class="stbar"></div>';
   document.body.appendChild(el);
-  const bar=el.querySelector(".bar"),dl=el.querySelector(".dl"),pb=el.querySelector(".pb"),sg=el.querySelector(".sg"),
-        av=el.querySelector(".hd2 .stc"),nm=el.querySelector(".meta b"),tm=el.querySelector(".meta small");
+  const bar=el.querySelector(".stbar"),dl=el.querySelector(".stdl"),pb=el.querySelector(".stpb"),sg=el.querySelector(".stsg"),
+        av=el.querySelector(".sthd .stc"),nm=el.querySelector(".stmeta b"),tm=el.querySelector(".stmeta small");
   let raf=0,last=0,el_ms=0,dur=5000,paused=false,uiHold=false,unv=null,vdocs=[],run=false,gone=false,relV=null,relS=null,inp=null;
 
   const fin=()=>{                                          // actual teardown
     if(gone)return;gone=true;unv&&unv();cancelAnimationFrame(raf);
     removeEventListener("keydown",key);
-    el.classList.add("out");                                // stay for a moment so the closing tap
+    el.classList.add("st-out");                                // stay for a moment so the closing tap
     setTimeout(()=>{el.remove();document.documentElement.style.overflow=ovf;renderStrip()},320);   // cannot hit the chat list below
   };
   const close=()=>{                                         // closed from the UI
@@ -311,7 +330,7 @@ function openViewer(groups,gi,si){
     if(e.key==="Escape")close();else if(e.key==="ArrowRight")next();else if(e.key==="ArrowLeft")prev();
   };
   addEventListener("keydown",key);
-  el.querySelector(".cl").onclick=close;
+  el.querySelector(".stcl").onclick=close;
 
   const bars=()=>{
     pb.textContent="";
@@ -327,53 +346,53 @@ function openViewer(groups,gi,si){
 
   /* viewers sheet (own status) */
   const fillViews=p=>{
-    p.textContent="";p.appendChild(E("div","gr"));
+    p.textContent="";p.appendChild(E("div","stgr"));
     const h=E("h4",null,"Viewed by "+vdocs.length),x=E("button");x.type="button";x.innerHTML=icon("close",20);x.setAttribute("aria-label","Close");
     x.onclick=closeSheet;h.appendChild(x);p.appendChild(h);
     if(!vdocs.length)p.appendChild(E("p",null,"No views yet"));
     vdocs.forEach(d=>{
-      const r=E("div","r"),a=E("div","stc"),n=E("span","nm",d.name||"User");setAv(a,d.name,d.photo);
+      const r=E("div","strw"),a=E("div","stc"),n=E("span","stnm",d.name||"User");setAv(a,d.name,d.photo);
       r.append(a,n,E("small",null,agoText(d.at)));p.appendChild(r);
       userOf(d.id).then(u=>{if(u.name)n.textContent=u.name;if(u.name||u.photo)setAv(a,u.name||d.name,u.photo||d.photo)});
     });
   };
   const closeSheet=()=>{
-    const p=el.querySelector(".vl");if(p)p.remove();
+    const p=el.querySelector(".stvl");if(p)p.remove();
     uiHold=false;if(relS){const r=relS;relS=null;r()}
   };
   const openSheet=()=>{
-    if(el.querySelector(".vl"))return;
+    if(el.querySelector(".stvl"))return;
     uiHold=true;
-    const p=E("div","vl");el.appendChild(p);fillViews(p);
+    const p=E("div","stvl");el.appendChild(p);fillViews(p);
     let y0=null;                                           // swipe down to dismiss
     p.addEventListener("pointerdown",e=>{y0=e.clientY});
     p.addEventListener("pointerup",e=>{if(y0!=null&&e.clientY-y0>60&&p.scrollTop<=0)closeSheet();y0=null});
-    relS=pushLayer(()=>{const q=el.querySelector(".vl");if(q)q.remove();uiHold=false;relS=null});
+    relS=pushLayer(()=>{const q=el.querySelector(".stvl");if(q)q.remove();uiHold=false;relS=null});
   };
 
   const side=s=>{                                          // bottom bar per status
     unv&&unv();unv=null;vdocs=[];uiHold=false;inp=null;
     const own=s.uid===me.uid;
-    dl.hidden=!own;el.classList.toggle("rp",!own);el.classList.toggle("ow",own);bar.textContent="";
-    const old=el.querySelector(".vl");if(old){old.remove();if(relS){const r=relS;relS=null;r()}}
+    dl.hidden=!own;el.classList.toggle("st-rp",!own);el.classList.toggle("st-ow",own);bar.textContent="";
+    const old=el.querySelector(".stvl");if(old){old.remove();if(relS){const r=relS;relS=null;r()}}
     if(own){
-      const v=E("button","vw");v.type="button";v.setAttribute("aria-label","Viewed by");
+      const v=E("button","stvw");v.type="button";v.setAttribute("aria-label","Viewed by");
       v.innerHTML=icon("eye",22)+'<span>0</span>';bar.appendChild(v);
       unv=onSnapshot(collection(db,"status",s.id,"views"),q=>{
         vdocs=q.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>ms(b.at)-ms(a.at));
         v.lastChild.textContent=vdocs.length;
-        const p=el.querySelector(".vl");if(p)fillViews(p);
+        const p=el.querySelector(".stvl");if(p)fillViews(p);
       },()=>{});
       v.onclick=openSheet;
     }else{
       recordView(s);
       inp=E("input");inp.type="text";inp.maxLength=500;inp.placeholder="Reply…";inp.autocomplete="off";inp.setAttribute("aria-label","Reply to status");
-      const b=E("button","sd");b.type="button";b.innerHTML=icon("send",20);b.setAttribute("aria-label","Send reply");
+      const b=E("button","stsd");b.type="button";b.innerHTML=icon("send",20);b.setAttribute("aria-label","Send reply");
       inp.onfocus=()=>{uiHold=true};inp.onblur=()=>{uiHold=false};
       const go2=async()=>{
         const t=inp.value.trim();if(!t||b.disabled)return;
         b.disabled=true;
-        try{await sendReply(s,t);inp.value="";inp.blur();toast("Reply sent")}
+        try{await sendReply(s,t);inp.value="";inp.blur();toast("Reply sent",true)}
         catch(e){toast("Could not send reply")}
         b.disabled=false;
       };
@@ -401,13 +420,15 @@ function openViewer(groups,gi,si){
     markSeen(s.id);side(s);
     if(s.type==="photo"){
       sg.style.background="#000";dur=6000;
+      const src=s.url.replace("/upload/","/upload/w_1200,q_auto,f_auto/");
+      const bl=E("div","stblur");bl.style.backgroundImage='url("'+src+'")';sg.appendChild(bl);   // blurred fill, no empty bars
       const im=new Image();im.alt="";im.draggable=false;
-      im.onload=go;im.onerror=go;im.src=s.url.replace("/upload/","/upload/w_1200,q_auto,f_auto/");
+      im.onload=go;im.onerror=go;im.src=src;
       sg.appendChild(im);
-      if(s.caption)sg.appendChild(E("div","cp",s.caption));
+      if(s.caption)sg.appendChild(E("div","stcp",s.caption));
     }else{
       sg.style.background=s.bg||BG[0];dur=Math.min(9000,3500+(s.text||"").length*45);
-      sg.appendChild(E("div","tx",s.text));go();
+      sg.appendChild(E("div","sttx",s.text));go();
     }
   };
   function next(){
@@ -435,10 +456,10 @@ function openViewer(groups,gi,si){
     if(e.button>0)return;
     const ae=document.activeElement;
     if(ae&&ae.tagName==="INPUT"){ae.blur();dn=false;return}
-    if(el.querySelector(".vl")){closeSheet();dn=false;return}
+    if(el.querySelector(".stvl")){closeSheet();dn=false;return}
     dn=true;x0=e.clientX;y0=e.clientY;hold=false;moved=false;
     clearTimeout(ht);
-    ht=setTimeout(()=>{if(dn&&!moved){hold=true;paused=true;el.classList.add("hold")}},HOLD_MS);
+    ht=setTimeout(()=>{if(dn&&!moved){hold=true;paused=true;el.classList.add("st-hold")}},HOLD_MS);
     try{sg.setPointerCapture(e.pointerId)}catch(_){}
   });
   sg.addEventListener("pointermove",e=>{
@@ -447,7 +468,7 @@ function openViewer(groups,gi,si){
   });
   const end=(e,cancel)=>{
     if(!dn)return;dn=false;clearTimeout(ht);
-    const wasHold=hold;hold=false;paused=false;el.classList.remove("hold");
+    const wasHold=hold;hold=false;paused=false;el.classList.remove("st-hold");
     if(cancel)return;
     const dx=e.clientX-x0,dy=e.clientY-y0;
     if(moved){
