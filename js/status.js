@@ -117,7 +117,11 @@ function css(){
   if($("stcss"))return;
   const s=E("style");s.id="stcss";
   s.textContent=`
-.sic{display:block;flex:none}
+/* Rotate send icons by 45 degrees */
+.stsd .sic,
+.stcgo .sic {
+  transform: rotate(45deg);
+}
 /* ===== composer (full screen) ===== */
 #stsh{position:fixed;left:0;top:0;right:0;bottom:0;z-index:90;display:flex;flex-direction:column;color:#fff;background:#111;animation:stfa .2s ease;overflow:hidden}
 #stsh .stcbg{position:absolute;inset:0;background:#111 center/cover no-repeat;transition:background .25s}
