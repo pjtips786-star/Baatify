@@ -130,6 +130,7 @@ function css(){
 #stsh .stcmid{position:relative;z-index:1;flex:1;min-height:0;display:grid;place-items:center;padding:8px 24px}
 #stsh textarea{width:100%;max-height:100%;background:none;border:0;outline:0;resize:none;color:#fff;text-align:center;font:600 30px/1.3 system-ui,sans-serif;overflow:auto}
 #stsh textarea::placeholder{color:rgba(255,255,255,.6)}
+#stsh .stcbg.ph{filter:blur(28px) brightness(.55);transform:scale(1.2)}
 #stsh .stcimg{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
 #stsh .stcpick{display:grid;justify-items:center;gap:10px;border:2px dashed rgba(255,255,255,.55);background:rgba(0,0,0,.25);color:#fff;border-radius:20px;padding:30px 34px;font:600 15px system-ui,sans-serif;cursor:pointer}
 #stsh .stcnote{position:relative;z-index:2;text-align:center;font-size:12px;opacity:.8;padding:0 16px 6px;text-shadow:0 1px 3px rgba(0,0,0,.6)}
@@ -231,7 +232,7 @@ function openComposer(){
     const mid=$("st_mid"),bot=$("st_bot"),bgEl=$("st_bg");
     mid.textContent="";bot.textContent="";
     if(mode==="text"){
-      bgEl.style.background=BG[bg];
+      bgEl.classList.remove("ph");      bgEl.style.background=BG[bg];
       const t=E("textarea");t.id="st_t";t.maxLength=700;t.rows=3;t.placeholder="Type a status";
       t.addEventListener("input",()=>{const n=t.value.length;t.style.fontSize=(n>220?20:n>110?24:30)+"px"});
       mid.appendChild(t);
@@ -240,13 +241,12 @@ function openComposer(){
       bot.append(sw,goBtn);
       setTimeout(()=>t.focus(),50);
     }else{
-      bgEl.style.background="#111";
+      bgEl.style.background="#111";bgEl.classList.remove("ph");
       if(file){
         const u=URL.createObjectURL(file);
-        bgEl.style.background="#111 url("+u+") center/cover no-repeat";
+        bgEl.style.background="#111 url("+u+") center/cover no-repeat";bgEl.classList.add("ph");
         const im=new Image();im.className="stcimg";im.alt="";im.src=u;
-        const veil=E("div");veil.style.cssText="position:absolute;inset:0;backdrop-filter:blur(22px) brightness(.55);-webkit-backdrop-filter:blur(22px) brightness(.55)";
-        w.querySelector(".stcmid").append(veil,im);
+        w.querySelector(".stcmid").append(im);
         const cap=E("input","stccap");cap.type="text";cap.id="st_cap";cap.maxLength=200;cap.placeholder="Add a caption…";
         bot.append(cap,goBtn);
       }else{
