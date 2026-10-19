@@ -141,8 +141,8 @@ function onBtn(){
 
 /* ---------- scene: night garden with glowing flowers, everything sways in the wind ---------- */
 const px=()=>W*.5;
-const soilY=()=>H-32*S;
-const hMax=()=>Math.min(soilY()-74*S,150*S);
+const soilY=()=>H-50*S;
+const hMax=()=>Math.min(soilY()-64*S,150*S);
 const rgba=(a,al)=>"rgba("+a.join(",")+","+al+")";
 let specks=[],flies=[],blades=[],pulse=0,WD=0;
 function windNow(){
@@ -158,7 +158,7 @@ function seedScene(){
   for(let i=0;i<38;i++){
     const edge=i<14?rnd(0,.3):i<28?rnd(.7,1):rnd(.3,.7);
     const mid=edge>.3&&edge<.7;
-    blades.push({x:edge,h:mid?rnd(.08,.2):rnd(.16,.42),w:rnd(1.6,3.4),lean:rnd(-.35,.35)+(edge<.3?-.15:edge>.7?.15:0),ph:rnd(0,6),back:i%2===0});
+    blades.push({x:edge,h:mid?rnd(.08,.2):rnd(.16,.42),w:rnd(1.6,3.4),lean:rnd(-.35,.35)+(edge<.3?-.15:edge>.7?.15:0),ph:rnd(0,6),back:mid||i%2===0});
   }
 }
 function drawBg(dt){
@@ -187,6 +187,22 @@ function drawGrass(back){
     if(back){g.addColorStop(0,"#07381a");g.addColorStop(1,"#17893a")}else{g.addColorStop(0,"#0a5a1f");g.addColorStop(1,"#35d93f")}
     ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(bx-w,H+2);ctx.quadraticCurveTo(cx-w*.5,cy,tx,ty);ctx.quadraticCurveTo(cx+w*.7,cy,bx+w,H+2);ctx.fill();
   });
+}
+function drawPot(wet){
+  const x=px(),y=soilY(),b=H-8*S;
+  // soft glow on the ground under the pot
+  ctx.fillStyle="rgba(0,0,0,.35)";ctx.beginPath();ctx.ellipse(x,b+1*S,46*S,5*S,0,0,6.28);ctx.fill();
+  const g=ctx.createLinearGradient(x-36*S,0,x+36*S,0);g.addColorStop(0,"#0a2a2e");g.addColorStop(.4,"#1d6c6c");g.addColorStop(.7,"#124a4d");g.addColorStop(1,"#082226");
+  ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(x-34*S,y);ctx.lineTo(x+34*S,y);ctx.lineTo(x+24*S,b);ctx.lineTo(x-24*S,b);ctx.closePath();ctx.fill();
+  ctx.fillStyle="rgba(160,255,240,.16)";ctx.beginPath();ctx.moveTo(x-28*S,y+7*S);ctx.lineTo(x-20*S,y+7*S);ctx.lineTo(x-15*S,b-4*S);ctx.lineTo(x-20*S,b-4*S);ctx.fill();
+  ctx.fillStyle="rgba(120,255,235,.22)";ctx.fillRect(x-31*S,y+13*S,62*S,2*S);   // glowing band
+  // soil
+  ctx.fillStyle=mix("#6b5a45","#241a14",wet);ctx.beginPath();ctx.ellipse(x,y,35*S,7*S,0,0,6.28);ctx.fill();
+  ctx.fillStyle="rgba(0,0,0,.25)";for(let i=0;i<7;i++){ctx.beginPath();ctx.arc(x-26*S+i*8.5*S,y+(i%2?2:-1)*S,1.2*S,0,6.28);ctx.fill()}
+  // rim
+  const rg=ctx.createLinearGradient(x-38*S,0,x+38*S,0);rg.addColorStop(0,"#13474a");rg.addColorStop(.5,"#2fa7a2");rg.addColorStop(1,"#0f3d40");
+  ctx.fillStyle=rg;rr(x-38*S,y-4*S,76*S,10*S,4.5*S);ctx.fill();
+  ctx.fillStyle="rgba(200,255,248,.3)";rr(x-35*S,y-3*S,70*S,2.2*S,2*S);ctx.fill();
 }
 function tealLeaf(x,y,ang,L,dim,al){
   if(L<1)return;
@@ -341,6 +357,7 @@ function frame(now){
   ctx.clearRect(0,0,W,H);
   drawBg(dt);
   drawGrass(true);
+  drawPot(shownM);
   const p=drawPlant();
   drawThirst(p);
   drawCan(p);
