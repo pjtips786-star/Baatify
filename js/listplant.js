@@ -1,5 +1,5 @@
 /* ===== listplant.js (v2): a flower plant that grows over 30 days in the empty space under the chat list =====
-   - A small garden scene (sky changes with the time of day, hills, grass, clay pot).
+   - A glowing night garden: teal flowers, fireflies, grass and plant all sway in the wind.
    - Water it once a day. After 30 days of care it blooms. It droops when thirsty and recovers after watering.
    - Saved in Firestore at  users/{uid}/plant/main  (works across phones). A local copy keeps it instant/offline.
    Use this file INSTEAD of listfill.js / listgame.js / listcat.js (same spot).
@@ -75,7 +75,7 @@ function css(){
   s.textContent=
 "#lplant{position:absolute;left:0;right:0;z-index:0;box-sizing:border-box;padding:10px 12px 12px}"+
 "#lplant.hide{display:none}"+
-"#lplant .card{position:relative;height:100%;border-radius:22px;overflow:hidden;background:#1b2a33;box-shadow:0 6px 18px rgba(0,0,0,.28),0 0 0 1px rgba(255,255,255,.06) inset;-webkit-tap-highlight-color:transparent}"+
+"#lplant .card{position:relative;height:100%;border-radius:22px;overflow:hidden;background:#03100f;box-shadow:0 6px 18px rgba(0,0,0,.3),0 0 0 1px rgba(255,255,255,.06) inset;-webkit-tap-highlight-color:transparent}"+
 "#lplant canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:manipulation}"+
 "#lplant .chip{position:absolute;left:10px;top:10px;max-width:40%;padding:7px 12px 8px;border-radius:14px;background:rgba(14,22,28,.55);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;font:12.5px/1.3 system-ui,sans-serif;pointer-events:none;box-shadow:0 0 0 1px rgba(255,255,255,.08) inset}"+
 "#lplant .chip b{display:block;font-size:17px;font-weight:700;letter-spacing:.01em}"+
@@ -83,9 +83,9 @@ function css(){
 "#lplant .prog{position:absolute;left:12px;bottom:14px;width:30%;max-width:126px;pointer-events:none;color:#fff;font:600 11.5px system-ui,sans-serif;text-shadow:0 1px 3px rgba(0,0,0,.55)}"+
 "#lplant .prog .bar{height:7px;margin-top:5px;border-radius:4px;background:rgba(0,0,0,.35);overflow:hidden}"+
 "#lplant .prog .bar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#7ad26b,#ff8fb3);transition:width .8s}"+
-"#lplant .pw{position:absolute;right:14px;bottom:12px;width:56px;height:56px;border:0;padding:0;border-radius:50%;cursor:pointer;background:conic-gradient(#58c4ff calc(var(--m,0)*1%),rgba(0,0,0,.35) 0);display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.35);-webkit-tap-highlight-color:transparent;transition:transform .12s}"+
+"#lplant .pw{position:absolute;right:14px;bottom:12px;width:56px;height:56px;border:0;padding:0;border-radius:50%;cursor:pointer;background:conic-gradient(#3de0cf calc(var(--m,0)*1%),rgba(0,0,0,.35) 0);display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.35);-webkit-tap-highlight-color:transparent;transition:transform .12s}"+
 "#lplant .pw:active{transform:scale(.94)}"+
-"#lplant .pw i{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#35b6ff,#1f86d9);color:#fff}"+
+"#lplant .pw i{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#22d3c0,#0c8f9f);color:#fff}"+
 "#lplant .pw.done i{background:linear-gradient(160deg,#4cc46a,#2c9a4c)}"+
 "#lplant .pw.seed i{background:linear-gradient(160deg,#ff8fb3,#e0558a)}"+
 "#lplant .pw.ask i{animation:lpask 1.6s ease-in-out infinite}"+
@@ -101,7 +101,7 @@ const IC={
 
 let box=null,card=null,cv=null,ctx=null,W=0,H=0,S=1,dpr=1,raf=0,last=0,T=0;
 let els={};
-let shownC=0,shownM=1,wAnim=0,drops=[],petals=[],sparks=[],fly={t:0},sayT=0,resetT=0,stars=[],clouds=[];
+let shownC=0,shownM=1,wAnim=0,drops=[],petals=[],sparks=[],fly={t:0},sayT=0,resetT=0;
 
 function say(t){els.sub.textContent=t;clearTimeout(sayT);sayT=setTimeout(refreshText,2800)}
 
@@ -126,7 +126,7 @@ function water(){
   if(c>=DAYS){say("Your flower is in full bloom.");fly.t=0;return}
   if(wateredToday()){say("Still moist. Once a day is enough.");return}
   data.cared.push(todayStr());data.last=Date.now();push();
-  wAnim=.0001;
+  wAnim=.0001;pulse=1;
   if(careDays()>=DAYS)setTimeout(()=>{for(let i=0;i<30;i++)sparks.push({x:px(),y:H*.35+rnd(-30,30)*S,vx:rnd(-70,70)*S,vy:rnd(-100,-20)*S,l:rnd(.8,1.6)});say("It bloomed. Day "+DAYS+" done.");refreshText()},2300);
   else say(careDays()<=1?"Thank you. Growing already.":"Nice. A little taller today.");
   refreshText();kick();
@@ -139,160 +139,155 @@ function onBtn(){
   water();
 }
 
-/* ---------- scene ---------- */
-const px=()=>W*.55;
-const groundY=()=>H-42*S;
-const soilY=()=>H-52*S;
-const hMax=()=>Math.min(soilY()-44*S,160*S);
-function phase(){
-  const t=istNow(),h=t.getUTCHours()+t.getUTCMinutes()/60;
-  if(h>=6&&h<9)return {k:"dawn",sky:["#7fb7ee","#ffd9b5"],hill:["#7fbf7a","#5fa466"],grass:["#58a85e","#3f8a4a"],sun:.15,glow:"#ffe2a8"};
-  if(h>=9&&h<17)return {k:"day",sky:["#5fb6f5","#d9f1ff"],hill:["#8ccf86","#69b673"],grass:["#5cb264","#439550"],sun:.45,glow:"#fff6c2"};
-  if(h>=17&&h<19.5)return {k:"dusk",sky:["#6b6fc0","#ffb98a"],hill:["#6ea56f","#4f8559"],grass:["#4d9456","#37763f"],sun:.82,glow:"#ffd29a"};
-  return {k:"night",sky:["#0f1a3d","#2a3f73"],hill:["#2d5a4a","#22463a"],grass:["#2a5f46","#1d4633"],sun:0,glow:"#cfe0ff"};
+/* ---------- scene: night garden with glowing flowers, everything sways in the wind ---------- */
+const px=()=>W*.5;
+const soilY=()=>H-32*S;
+const hMax=()=>Math.min(soilY()-74*S,150*S);
+const rgba=(a,al)=>"rgba("+a.join(",")+","+al+")";
+let specks=[],flies=[],blades=[],pulse=0,WD=0;
+function windNow(){
+  if(RM)return 0;
+  const g=Math.max(0,Math.sin(T*.23));
+  return Math.sin(T*.8)*.55+Math.sin(T*1.9+1.3)*.25+g*g*g*.7;
 }
-function drawScene(dt){
-  const P=phase();
-  let g=ctx.createLinearGradient(0,0,0,groundY());g.addColorStop(0,P.sky[0]);g.addColorStop(1,P.sky[1]);
-  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
-  // sun or moon
-  const sx=W-38*S,sy=34*S;
-  if(P.k==="night"){
-    stars.forEach(s=>{ctx.globalAlpha=.45+.45*Math.sin(T*1.4+s.p);ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(s.x*W,s.y*H*.5,s.r*S,0,6.28);ctx.fill()});ctx.globalAlpha=1;
-    ctx.fillStyle="#f4f1de";ctx.beginPath();ctx.arc(sx,sy,13*S,0,6.28);ctx.fill();
-    ctx.fillStyle="#2a3f73";ctx.beginPath();ctx.arc(sx+6*S,sy-3*S,11*S,0,6.28);ctx.fill();
-  }else{
-    const sy2=sy+(P.sun>.6?18*S:0);
-    const rg=ctx.createRadialGradient(sx,sy2,2,sx,sy2,46*S);rg.addColorStop(0,P.glow);rg.addColorStop(1,"rgba(255,255,255,0)");
-    ctx.fillStyle=rg;ctx.fillRect(sx-50*S,sy2-50*S,100*S,100*S);
-    ctx.fillStyle=P.k==="dusk"?"#ffb36b":"#fff3b0";ctx.beginPath();ctx.arc(sx,sy2,12*S,0,6.28);ctx.fill();
-  }
-  // clouds
-  const cc=P.k==="night"?"rgba(150,170,220,.25)":P.k==="dusk"?"rgba(255,225,205,.7)":"rgba(255,255,255,.85)";
-  clouds.forEach(c=>{
-    if(!RM)c.x+=c.v*dt/W;if(c.x>1.25)c.x=-.25;
-    const x=c.x*W,y=c.y*H;ctx.fillStyle=cc;
-    const el=(ex,ey,rx,ry)=>{ctx.moveTo(ex+rx,ey);ctx.ellipse(ex,ey,rx,ry,0,0,6.28)};
-    ctx.beginPath();el(x,y,22*S*c.s,7*S*c.s);el(x-12*S*c.s,y+2*S,14*S*c.s,6*S*c.s);el(x+14*S*c.s,y+2*S,15*S*c.s,6*S*c.s);el(x+2*S,y-6*S*c.s,11*S*c.s,7*S*c.s);ctx.fill();
-  });
-  // hills
-  ctx.fillStyle=P.hill[0];ctx.beginPath();ctx.moveTo(0,groundY());
-  for(let x=0;x<=W;x+=8)ctx.lineTo(x,groundY()-30*S-Math.sin(x/W*3.1+.6)*14*S-Math.sin(x/W*7)*4*S);
-  ctx.lineTo(W,groundY());ctx.fill();
-  ctx.fillStyle=P.hill[1];ctx.beginPath();ctx.moveTo(0,groundY());
-  for(let x=0;x<=W;x+=8)ctx.lineTo(x,groundY()-12*S-Math.sin(x/W*4.4+2)*9*S);
-  ctx.lineTo(W,groundY());ctx.fill();
-  // grass
-  g=ctx.createLinearGradient(0,groundY(),0,H);g.addColorStop(0,P.grass[0]);g.addColorStop(1,P.grass[1]);
-  ctx.fillStyle=g;ctx.fillRect(0,groundY(),W,H-groundY());
-  ctx.strokeStyle="rgba(255,255,255,.1)";ctx.lineWidth=1.3*S;ctx.lineCap="round";
-  for(let i=0;i<34;i++){const x=(i*37.7%W),y=groundY()+6*S+((i*53)%(H-groundY()-10*S));ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+1.5*S,y-5*S);ctx.stroke()}
-  // night tint
-  if(P.k==="night"){ctx.fillStyle="rgba(8,14,40,.18)";ctx.fillRect(0,0,W,H)}
-}
-
 function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
-function drawPot(wet){
-  const x=px(),y=soilY(),b=H-10*S;
-  ctx.fillStyle="rgba(0,0,0,.22)";ctx.beginPath();ctx.ellipse(x,b+1*S,46*S,5*S,0,0,6.28);ctx.fill();
-  const g=ctx.createLinearGradient(x-36*S,0,x+36*S,0);g.addColorStop(0,"#b8603f");g.addColorStop(.45,"#d9835d");g.addColorStop(1,"#a2512f");
-  ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(x-33*S,y);ctx.lineTo(x+33*S,y);ctx.lineTo(x+24*S,b);ctx.lineTo(x-24*S,b);ctx.closePath();ctx.fill();
-  ctx.fillStyle="rgba(255,255,255,.14)";ctx.beginPath();ctx.moveTo(x-28*S,y+6*S);ctx.lineTo(x-20*S,y+6*S);ctx.lineTo(x-15*S,b-4*S);ctx.lineTo(x-20*S,b-4*S);ctx.fill();
-  ctx.fillStyle="rgba(120,40,20,.25)";ctx.fillRect(x-31*S,y+13*S,62*S,3*S);   // band
-  // soil
-  ctx.fillStyle=mix("#a67c52","#4a3224",wet);ctx.beginPath();ctx.ellipse(x,y,35*S,7*S,0,0,6.28);ctx.fill();
-  ctx.fillStyle="rgba(0,0,0,.2)";for(let i=0;i<7;i++){ctx.beginPath();ctx.arc(x-26*S+i*8.5*S,y+(i%2?2:-1)*S,1.2*S,0,6.28);ctx.fill()}
-  // rim
-  const rg=ctx.createLinearGradient(x-38*S,0,x+38*S,0);rg.addColorStop(0,"#c26b48");rg.addColorStop(.5,"#e69669");rg.addColorStop(1,"#b05a38");
-  ctx.fillStyle=rg;rr(x-38*S,y-4*S,76*S,10*S,4.5*S);ctx.fill();
-  ctx.fillStyle="rgba(255,255,255,.2)";rr(x-35*S,y-3*S,70*S,2.4*S,2*S);ctx.fill();
+function seedScene(){
+  specks=[];flies=[];blades=[];
+  for(let i=0;i<70;i++)specks.push({x:Math.random(),y:Math.random(),v:rnd(2,7),a:rnd(.15,.5),p:rnd(0,6)});
+  for(let i=0;i<18;i++)flies.push({x:rnd(.2,.8),y:rnd(.4,1),sp:rnd(.5,1.3),p:rnd(0,6),y2:rnd(0,1),c:i%3?0:1});
+  for(let i=0;i<38;i++){
+    const edge=i<14?rnd(0,.3):i<28?rnd(.7,1):rnd(.3,.7);
+    const mid=edge>.3&&edge<.7;
+    blades.push({x:edge,h:mid?rnd(.08,.2):rnd(.16,.42),w:rnd(1.6,3.4),lean:rnd(-.35,.35)+(edge<.3?-.15:edge>.7?.15:0),ph:rnd(0,6),back:i%2===0});
+  }
 }
-function leaf(x,y,ang,L,col,k){
-  const w=L*.4;
+function drawBg(dt){
+  let g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,"#02100f");g.addColorStop(.7,"#041c1b");g.addColorStop(1,"#06302c");
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  // glow under the plant
+  const gl=ctx.createRadialGradient(px(),soilY(),4,px(),soilY()-20*S,150*S);
+  const ga=.16+.1*pulse+.06*clamp(shownC/DAYS,0,1);
+  gl.addColorStop(0,"rgba(60,235,215,"+ga+")");gl.addColorStop(1,"rgba(60,235,215,0)");
+  ctx.globalCompositeOperation="lighter";ctx.fillStyle=gl;ctx.fillRect(0,0,W,H);ctx.globalCompositeOperation="source-over";
+  // floating specks
+  ctx.fillStyle="#6fe9de";
+  specks.forEach(s=>{
+    s.y+=s.v*dt/H*S;s.x+=WD*4*dt/W;if(s.y>1)s.y=0;if(s.x>1)s.x=0;if(s.x<0)s.x=1;
+    ctx.globalAlpha=s.a*(.6+.4*Math.sin(T*1.2+s.p));
+    ctx.save();ctx.translate(s.x*W,s.y*H);ctx.rotate(.5+Math.sin(s.p)*.4);ctx.fillRect(-1.6*S,-.5*S,3.2*S,1*S);ctx.restore();
+  });
+  ctx.globalAlpha=1;
+}
+function drawGrass(back){
+  blades.forEach(b=>{
+    if(b.back!==back)return;
+    const bx=b.x*W,hh=b.h*H*(back?1.05:1),sw=WD*hh*.2+(RM?0:Math.sin(T*1.3+b.ph)*hh*.06);
+    const tx=bx+b.lean*hh+sw,ty=H-hh,cx=bx+b.lean*hh*.25+sw*.35,cy=H-hh*.55,w=b.w*S;
+    const g=ctx.createLinearGradient(0,H,0,ty);
+    if(back){g.addColorStop(0,"#07381a");g.addColorStop(1,"#17893a")}else{g.addColorStop(0,"#0a5a1f");g.addColorStop(1,"#35d93f")}
+    ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(bx-w,H+2);ctx.quadraticCurveTo(cx-w*.5,cy,tx,ty);ctx.quadraticCurveTo(cx+w*.7,cy,bx+w,H+2);ctx.fill();
+  });
+}
+function tealLeaf(x,y,ang,L,dim,al){
+  if(L<1)return;
+  const w=L*.42;
   ctx.save();ctx.translate(x,y);ctx.rotate(ang);
-  const g=ctx.createLinearGradient(0,0,L,0);g.addColorStop(0,rgb(col,-.16));g.addColorStop(1,rgb(col,.1+(k||0)));
-  ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(0,0);ctx.quadraticCurveTo(L*.45,-w*1.15,L,0);ctx.quadraticCurveTo(L*.45,w*.85,0,0);ctx.fill();
-  ctx.strokeStyle="rgba(255,255,255,.32)";ctx.lineWidth=Math.max(.7,L*.035);ctx.beginPath();ctx.moveTo(L*.04,0);ctx.lineTo(L*.88,0);ctx.stroke();
+  const g=ctx.createLinearGradient(0,0,L,0);
+  g.addColorStop(0,rgba(mixA("#0b6a76","#3a5558",dim),al));g.addColorStop(1,rgba(mixA("#5ae3d9","#728f8b",dim),al*.9));
+  ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(0,0);ctx.quadraticCurveTo(L*.38,-w*1.35,L,0);ctx.quadraticCurveTo(L*.38,w*.95,0,0);ctx.fill();
+  ctx.strokeStyle="rgba(200,255,248,.28)";ctx.lineWidth=Math.max(.6,L*.03);ctx.beginPath();ctx.moveTo(L*.05,0);ctx.lineTo(L*.85,0);ctx.stroke();
   ctx.restore();
 }
-function plantPose(c,m,sway){
-  const bx=px(),by=soilY(),hm=hMax();
-  const h=lerp(14*S,hm,Math.pow(clamp(c/24,0,1),.85));
-  const tipX=bx+4*S+sway*(h/hm)*2.2*S+m*30*S*(h/hm+.15);
-  const tipY=by-h*(1-.14*m);
-  const cx=bx-6*S+m*8*S,cy=by-h*.55;
-  const P=t=>{const u=1-t;return {x:u*u*bx+2*u*t*cx+t*t*tipX,y:u*u*by+2*u*t*cy+t*t*tipY}};
-  return {bx,by,h,hm,tipX,tipY,cx,cy,P};
+function petal(a,L,Wd,dim){
+  ctx.save();ctx.rotate(a);
+  const g=ctx.createLinearGradient(0,0,0,-L);g.addColorStop(0,rgba(mixA("#2fb8b4","#4c6e6c",dim),.95));g.addColorStop(1,rgba(mixA("#c4fff5","#8fb0ab",dim),.92));
+  ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(0,0);ctx.bezierCurveTo(Wd,-L*.15,Wd*1.15,-L*.85,0,-L);ctx.bezierCurveTo(-Wd*1.15,-L*.85,-Wd,-L*.15,0,0);ctx.fill();
+  ctx.restore();
 }
-function flower(x,y,f){
-  const R=27*S*(.3+.7*f),n=11;
-  ctx.fillStyle="#3f9a4a";for(let i=0;i<5;i++){ctx.save();ctx.translate(x,y);ctx.rotate(i*1.2566+Math.PI/2);ctx.beginPath();ctx.ellipse(0,R*.35,R*.12,R*.3,0,0,6.28);ctx.fill();ctx.restore()}
-  const rot=RM?0:Math.sin(T*.3)*.06;
-  [[1,0],[.8,Math.PI/n]].forEach(([k,off],layer)=>{
-    for(let i=0;i<n;i++){
-      ctx.save();ctx.translate(x,y);ctx.rotate(i*(6.2832/n)+off+rot);
-      const len=R*k,wid=R*.27*k*(.55+.45*f);
-      const g=ctx.createLinearGradient(0,0,0,-len);g.addColorStop(0,layer?"#ffd2e2":"#fff0f5");g.addColorStop(.5,layer?"#ffa3c3":"#ffc0d5");g.addColorStop(1,layer?"#ff74a2":"#ff86ae");
-      ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(0,-R*.1);ctx.bezierCurveTo(wid*1.3,-len*.35,wid*1.1,-len*.85,0,-len);ctx.bezierCurveTo(-wid*1.1,-len*.85,-wid*1.3,-len*.35,0,-R*.1);ctx.fill();
-      ctx.strokeStyle="rgba(190,60,110,.26)";ctx.lineWidth=.9;ctx.beginPath();ctx.moveTo(0,-R*.15);ctx.lineTo(0,-len*.8);ctx.stroke();
-      ctx.restore();
-    }
-  });
-  const cr=R*.27*(.6+.4*f);
-  const cg=ctx.createRadialGradient(x-cr*.3,y-cr*.3,1,x,y,cr);cg.addColorStop(0,"#ffe27a");cg.addColorStop(1,"#e9a416");
-  ctx.fillStyle=cg;ctx.beginPath();ctx.arc(x,y,cr,0,6.28);ctx.fill();
-  ctx.fillStyle="#c97d0c";for(let i=0;i<9;i++){const a=i*.7,d=cr*.55*(i%3?1:.4);ctx.beginPath();ctx.arc(x+Math.cos(a)*d,y+Math.sin(a)*d,cr*.13,0,6.28);ctx.fill()}
+/* f: 0 = closed bud .. 1 = open flower, b: size of the bud, rot: tilt */
+function head(x,y,f,b,rot,dim){
+  const R=(6+17*b)*S*(1+.3*f);
+  ctx.save();ctx.translate(x,y);ctx.rotate(rot);
+  const ga=(.1+.3*f+.12*pulse)*(1-dim*.75);
+  const gl=ctx.createRadialGradient(0,-R*.4,1,0,-R*.4,R*3);gl.addColorStop(0,"rgba(120,255,235,"+ga+")");gl.addColorStop(1,"rgba(120,255,235,0)");
+  ctx.globalCompositeOperation="lighter";ctx.fillStyle=gl;ctx.fillRect(-R*3.2,-R*3.6,R*6.4,R*6.4);ctx.globalCompositeOperation="source-over";
+  ctx.globalAlpha=1-dim*.3;
+  if(f<.03){
+    const bg=ctx.createLinearGradient(0,0,0,-R*1.3);bg.addColorStop(0,rgba(mixA("#27a9a6","#4c6e6c",dim),1));bg.addColorStop(1,rgba(mixA("#b6fff3","#8fb0ab",dim),1));
+    ctx.fillStyle=bg;ctx.beginPath();ctx.moveTo(0,0);ctx.bezierCurveTo(R*.75,-R*.2,R*.6,-R*1.0,0,-R*1.4);ctx.bezierCurveTo(-R*.6,-R*1.0,-R*.75,-R*.2,0,0);ctx.fill();
+    ctx.fillStyle=rgba(mixA("#127f86","#3a5558",dim),.95);
+    [-1,1].forEach(d=>{ctx.save();ctx.rotate(d*.5);ctx.beginPath();ctx.moveTo(0,0);ctx.quadraticCurveTo(d*R*.5,-R*.3,0,-R*.7);ctx.quadraticCurveTo(-d*R*.1,-R*.3,0,0);ctx.fill();ctx.restore()});
+  }else{
+    const sp=.12+.88*f;
+    petal(0,R*1.0,R*.52,dim);
+    petal(-.95*sp,R*1.02,R*.56,dim);
+    petal(.95*sp,R*1.02,R*.56,dim);
+    // front lip with a yellow centre
+    const lg=ctx.createLinearGradient(0,-R*.3,0,R*.08);lg.addColorStop(0,"rgba(255,255,255,.97)");lg.addColorStop(1,"rgba(170,245,236,.95)");
+    ctx.fillStyle=lg;ctx.beginPath();ctx.ellipse(0,-R*.08,R*.52,R*.2*(.4+.6*f),0,0,6.28);ctx.fill();
+    ctx.fillStyle="#ffd23f";ctx.beginPath();ctx.ellipse(0,-R*.1,R*.34,R*.095*(.4+.6*f),0,0,6.28);ctx.fill();
+    ctx.fillStyle="rgba(255,236,120,.9)";[-.2,0,.2].forEach((d,i)=>{ctx.beginPath();ctx.arc(d*R,-R*(.34+(i===1?.06:0)),R*.04,0,6.28);ctx.fill()});
+  }
+  ctx.restore();ctx.globalAlpha=1;
 }
+const SIDES=[{dir:-1,t0:.3,c0:11,len:48,hs:.5,bs:14,os:24},{dir:1,t0:.4,c0:15,len:52,hs:.42,bs:17,os:26.5}];
 function drawPlant(){
-  const c=shownC,m=clamp((.45-shownM)/.45,0,1),sway=RM?0:Math.sin(T*1.25)+Math.sin(T*.7)*.5;
-  const p=plantPose(c,m,sway);
-  const yel=clamp(m*.85+(data.last&&Date.now()-data.last>60*36e5?.25:0),0,1);
-  const stem=mixA("#3f9a4a","#9aa34a",yel),stemW=(2.6+3.6*clamp(c/20,0,1))*S;
-  [[-1,56,12],[1,84,15]].forEach(([dir,nh,c0])=>{
-    const g=clamp((c-c0)/9,0,1);if(g<=0||nh*S>p.h-8*S)return;
-    const t=clamp(nh*S/p.h,0,1),o=p.P(t);
-    const ang=dir*(.95+m*.5),len=34*S*ease(g);
-    const ex=o.x+Math.sin(ang)*len,ey=o.y-Math.cos(ang)*len*(1-.5*m);
-    ctx.strokeStyle=rgb(stem);ctx.lineWidth=stemW*.55;ctx.lineCap="round";ctx.beginPath();ctx.moveTo(o.x,o.y);ctx.quadraticCurveTo((o.x+ex)/2,o.y-6*S,ex,ey);ctx.stroke();
-    const lc=mixA("#49a652","#b3b24f",yel*.9);
-    leaf(ex,ey,-Math.PI/2+dir*.9+m*dir*.9,14*S*ease(g),lc);
-    leaf(ex,ey,-Math.PI/2+dir*.3+m*dir*.8,12*S*ease(g),lc);
+  const c=shownC,m=clamp((.45-shownM)/.45,0,1),dim=m*.9;
+  const bx=px(),by=soilY(),hm=hMax();
+  const h=lerp(14*S,hm,Math.pow(clamp(c/24,0,1),.85)),hr=h/hm;
+  const off=(WD*13*S+m*34*S)*(hr+.12);
+  const tipX=bx+off,tipY=by-h*(1-.12*m);
+  const cx=bx+off*.25-4*S,cy=by-h*.55;
+  const P=t=>{const u=1-t;return {x:u*u*bx+2*u*t*cx+t*t*tipX,y:u*u*by+2*u*t*cy+t*t*tipY}};
+  const stemC=rgb(mixA("#1aa3a0","#5b7d78",dim)),stemW=(2.2+2.6*clamp(c/18,0,1))*S;
+  const wet=1-dim*.4;
+  // basal fronds
+  [[-1.2,44],[-.72,56],[-.32,48],[.3,52],[.74,58],[1.2,44]].forEach((fr,i)=>{
+    const g=clamp((c-1.5-i*.7)/9,0,1);if(g<=0)return;
+    const a=fr[0],Lf=fr[1]*S*ease(g);
+    const tx=bx+Math.sin(a)*Lf*.95+WD*Lf*.2+m*Math.sign(a)*Lf*.25,ty=by-Math.cos(a)*Lf*.8+m*Lf*.3;
+    const qx=bx+Math.sin(a)*Lf*.25+WD*Lf*.05,qy=by-Lf*.62;
+    ctx.strokeStyle=stemC;ctx.lineWidth=1.8*S;ctx.lineCap="round";ctx.beginPath();ctx.moveTo(bx,by);ctx.quadraticCurveTo(qx,qy,tx,ty);ctx.stroke();
+    for(let k=1;k<=6;k++){
+      const t=k/7,u=1-t,x=u*u*bx+2*u*t*qx+t*t*tx,y=u*u*by+2*u*t*qy+t*t*ty;
+      const dx=2*u*(qx-bx)+2*t*(tx-qx),dy=2*u*(qy-by)+2*t*(ty-qy),ang=Math.atan2(dy,dx),L=(11-k*.9)*S*ease(g);
+      tealLeaf(x,y,ang-.95,L,dim,.9);tealLeaf(x,y,ang+.95,L,dim,.9);
+    }
+    tealLeaf(tx,ty,Math.atan2(ty-qy,tx-qx),9*S*ease(g),dim,.9);
   });
-  ctx.strokeStyle=rgb(stem);ctx.lineWidth=stemW;ctx.lineCap="round";ctx.beginPath();ctx.moveTo(p.bx,p.by);ctx.quadraticCurveTo(p.cx,p.cy,p.tipX,p.tipY);ctx.stroke();
-  ctx.strokeStyle="rgba(255,255,255,.18)";ctx.lineWidth=stemW*.3;ctx.beginPath();ctx.moveTo(p.bx-stemW*.2,p.by);ctx.quadraticCurveTo(p.cx-stemW*.2,p.cy,p.tipX-stemW*.2,p.tipY);ctx.stroke();
-  const K=7;
+  // side stems with their own flowers
+  const heads=[];
+  SIDES.forEach(sd=>{
+    const g=clamp((c-sd.c0)/12,0,1);if(g<=0)return;
+    const o=P(sd.t0);
+    const sx=o.x+sd.dir*sd.len*S*g*(1-.3*m)+WD*10*S*g+m*sd.dir*8*S,sy=o.y-hm*sd.hs*g*(1-.18*m);
+    const qx=o.x+sd.dir*sd.len*S*g*.1,qy=o.y-(o.y-sy)*.72;
+    ctx.strokeStyle=stemC;ctx.lineWidth=stemW*.75;ctx.lineCap="round";ctx.beginPath();ctx.moveTo(o.x,o.y);ctx.quadraticCurveTo(qx,qy,sx,sy);ctx.stroke();
+    const mx=(o.x+2*qx+sx)/4,my=(o.y+2*qy+sy)/4;
+    tealLeaf(mx,my,-Math.PI/2+sd.dir*(1.1+m*.5),14*S*ease(g),dim,.9);
+    tealLeaf(mx,my,-Math.PI/2-sd.dir*.35+m*sd.dir*.3,11*S*ease(g),dim,.9);
+    if(c>=sd.bs)heads.push({x:sx,y:sy,f:clamp((c-sd.os)/3.5,0,1),b:clamp((c-sd.bs)/8,0,1),r:WD*.1+sd.dir*.12+m*sd.dir*.9});
+  });
+  // main stem and its leaf pairs
+  ctx.strokeStyle=stemC;ctx.lineWidth=stemW;ctx.lineCap="round";ctx.beginPath();ctx.moveTo(bx,by);ctx.quadraticCurveTo(cx,cy,tipX,tipY);ctx.stroke();
+  ctx.strokeStyle="rgba(190,255,248,.2)";ctx.lineWidth=stemW*.28;ctx.beginPath();ctx.moveTo(bx-stemW*.2,by);ctx.quadraticCurveTo(cx-stemW*.2,cy,tipX-stemW*.2,tipY);ctx.stroke();
+  const K=6;
   for(let k=0;k<K;k++){
-    const born=1.5+k*3.4,a=clamp((c-born)/6,0,1);if(a<=0)continue;
-    const nh=(18+k*19)*S;if(nh>p.h-5*S)continue;
-    const o=p.P(clamp(nh/p.h,0,1)),L=(14+14*(1-k/K*.45))*S*ease(a)*(.8+.2*clamp(c/20,0,1));
-    const lc=mixA(k%2?"#49a652":"#3f9a4a","#b3b24f",yel*.9);
-    const base=(1.05-k*.045)+m*.55,w=RM?0:Math.sin(T*1.7+k)*.045;
-    leaf(o.x,o.y,-Math.PI/2+base+w,L,lc);
-    leaf(o.x,o.y,-Math.PI/2-base-w,L,lc);
+    const born=2+k*3.6,a=clamp((c-born)/6,0,1);if(a<=0)continue;
+    const nh=(20+k*21)*S;if(nh>h-6*S)continue;
+    const o=P(clamp(nh/h,0,1)),L=(15+13*(1-k/K*.5))*S*ease(a);
+    const base=(1.1-k*.06)+m*.5,w=RM?0:Math.sin(T*1.7+k)*.06+WD*.07;
+    tealLeaf(o.x,o.y,-Math.PI/2+base+w,L,dim,.92);
+    tealLeaf(o.x,o.y,-Math.PI/2-base+w,L,dim,.92);
   }
-  if(c<10){
-    const a=1-clamp((c-5)/5,0,1),L=11*S*a;
-    if(a>0){ctx.fillStyle=mix("#6cc070","#c1c56a",yel);
-      [-1,1].forEach(d=>{ctx.beginPath();ctx.ellipse(p.P(.5).x+d*8*S*(1+m*.3),p.P(.5).y+m*4*S,L*.8,L*.45,d*(.3+m*.6),0,6.28);ctx.fill()})}
-  }
-  if(c<20){
-    const L=(6+Math.min(c,18)*.55)*S,lc=mixA("#6cc070","#c1c56a",yel);
-    leaf(p.tipX,p.tipY,-Math.PI/2+.45+m*.9,L,lc);
-    leaf(p.tipX,p.tipY,-Math.PI/2-.45-m*.9,L,lc);
-  }
-  if(c>=19){
-    const b=clamp((c-19)/8,0,1),f=clamp((c-27)/3,0,1);
-    if(f<=0){
-      const bs=lerp(3,12,b)*S,pink=clamp((c-23)/4,0,1);
-      ctx.fillStyle=mix("#4aa356","#ff8fb3",pink*.8);ctx.beginPath();ctx.ellipse(p.tipX,p.tipY-bs*.9,bs*.7,bs*1.15,0,0,6.28);ctx.fill();
-      ctx.fillStyle="#3f9a4a";ctx.beginPath();ctx.moveTo(p.tipX-bs*.8,p.tipY-bs*.5);ctx.quadraticCurveTo(p.tipX,p.tipY+bs*.2,p.tipX+bs*.8,p.tipY-bs*.5);ctx.quadraticCurveTo(p.tipX,p.tipY-bs*.9,p.tipX-bs*.8,p.tipY-bs*.5);ctx.fill();
-    }else flower(p.tipX,p.tipY-8*S*f,f);
-  }
-  return p;
+  if(c<20){const L=(6+Math.min(c,18)*.5)*S;tealLeaf(tipX,tipY,-Math.PI/2+.5+m*.8,L,dim,.95);tealLeaf(tipX,tipY,-Math.PI/2-.5-m*.8,L,dim,.95)}
+  if(c>=19)heads.push({x:tipX,y:tipY-2*S,f:clamp((c-27)/3,0,1),b:clamp((c-19)/8,0,1),r:WD*.09+m*.9});
+  heads.forEach(hd=>head(hd.x,hd.y,hd.f,hd.b,hd.r,dim));
+  return {bx,by,h,hm,tipX,tipY,cx,cy,P,wet};
 }
 function drawThirst(p){
   if(wateredToday()||careDays()>=DAYS||shownM>.3)return;
-  const k=1+(RM?0:Math.sin(T*3)*.08),x=p.tipX+34*S,y=Math.max(30*S,p.tipY-26*S);
+  const k=1+(RM?0:Math.sin(T*3)*.08),x=p.tipX+36*S,y=Math.max(30*S,p.tipY-26*S);
   ctx.save();ctx.translate(x,y);ctx.scale(k,k);
   ctx.fillStyle="rgba(255,255,255,.94)";ctx.beginPath();ctx.arc(0,0,14*S,0,6.28);ctx.fill();
   ctx.beginPath();ctx.moveTo(-9*S,10*S);ctx.lineTo(-15*S,17*S);ctx.lineTo(-3*S,13*S);ctx.fill();
@@ -302,7 +297,7 @@ function drawThirst(p){
 function drawCan(p){
   if(wAnim<=0)return;
   const t=wAnim,tilt=ease(Math.min(1,t/.5))*(t>1.7?clamp(1-(t-1.7)/.4,0,1):1);
-  const x=p.bx+62*S,y=clamp(p.tipY-46*S,40*S,soilY()-72*S);
+  const x=p.bx+66*S,y=clamp(p.tipY-46*S,40*S,soilY()-72*S);
   ctx.save();ctx.translate(x,y);ctx.rotate(-.55*tilt);ctx.globalAlpha=clamp(Math.min(t/.25,(2.1-t)/.3),0,1);
   const g=ctx.createLinearGradient(0,-14*S,0,14*S);g.addColorStop(0,"#8cc0ee");g.addColorStop(1,"#5b93c4");
   ctx.fillStyle=g;rr(-4*S,-14*S,34*S,28*S,6*S);ctx.fill();
@@ -316,10 +311,26 @@ function drawCan(p){
     for(let i=0;i<2;i++)if(Math.random()<.8)drops.push({x:sx+rnd(-3,3)*S,y:sy,vx:rnd(-30,-6)*S,vy:rnd(20,60)*S});
   }
 }
+function drawFlies(dt){
+  const n=7+Math.round(11*clamp(shownC/DAYS,0,1)),bright=.55+.45*clamp(shownC/DAYS,0,1);
+  ctx.globalCompositeOperation="lighter";
+  for(let i=0;i<n&&i<flies.length;i++){
+    const f=flies[i];
+    f.y2-=f.sp*.02*dt*(RM?0:1)*20/ (H/245);f.x+=(Math.sin(T*f.sp+f.p)*5+WD*4)*dt/W;
+    if(f.y2<-.1){f.y2=1;f.x=rnd(.15,.85)}
+    const x=f.x*W,y=H*.32+f.y2*H*.62,tw=.5+.5*Math.sin(T*2.2*f.sp+f.p);
+    const col=f.c?"90,255,235":"255,220,80";
+    const g=ctx.createRadialGradient(x,y,0,x,y,7*S);g.addColorStop(0,"rgba("+col+","+(.8*tw*bright)+")");g.addColorStop(1,"rgba("+col+",0)");
+    ctx.fillStyle=g;ctx.fillRect(x-8*S,y-8*S,16*S,16*S);
+  }
+  ctx.globalCompositeOperation="source-over";
+}
 function frame(now){
   raf=0;
   if(!box||box.classList.contains("hide")||document.hidden){last=0;return}
   const dt=last?Math.min(.05,(now-last)/1000):0;last=now;T+=dt;
+  WD+=(windNow()-WD)*Math.min(1,dt*2.5);
+  pulse=Math.max(0,pulse-dt*.35);
   const wet=moisture();
   if(wAnim>0){wAnim+=dt;if(wAnim>2.2)wAnim=0}
   const target=careDays();
@@ -328,30 +339,23 @@ function frame(now){
   const wetTarget=wAnim>.9||wAnim===0?wet:shownM;
   shownM+=(wetTarget-shownM)*Math.min(1,dt*1.6);
   ctx.clearRect(0,0,W,H);
-  drawScene(dt);
-  drawPot(shownM);
+  drawBg(dt);
+  drawGrass(true);
   const p=drawPlant();
   drawThirst(p);
   drawCan(p);
-  drops.forEach(d=>{d.vy+=520*S*dt;d.x+=d.vx*dt;d.y+=d.vy*dt;if(d.y>=soilY()){d.dead=1;for(let i=0;i<2;i++)sparks.push({x:d.x,y:soilY(),vx:rnd(-30,30)*S,vy:rnd(-50,-15)*S,l:.4,w:1})}});
+  drops.forEach(d=>{d.vy+=520*S*dt;d.x+=d.vx*dt;d.y+=d.vy*dt;if(d.y>=soilY()){d.dead=1;pulse=Math.min(1,pulse+.03);for(let i=0;i<2;i++)sparks.push({x:d.x,y:soilY(),vx:rnd(-30,30)*S,vy:rnd(-50,-15)*S,l:.4,w:1})}});
   drops=drops.filter(d=>!d.dead&&d.y<H);
   ctx.fillStyle="#8ccbff";drops.forEach(d=>{ctx.beginPath();ctx.ellipse(d.x,d.y,1.6*S,2.6*S,0,0,6.28);ctx.fill()});
+  drawFlies(dt);
+  drawGrass(false);
   sparks.forEach(s=>{s.x+=s.vx*dt;s.y+=s.vy*dt;s.vy+=(s.w?260:60)*S*dt;s.l-=dt});
   sparks=sparks.filter(s=>s.l>0);
-  sparks.forEach(s=>{ctx.globalAlpha=clamp(s.l*1.5,0,1);ctx.fillStyle=s.w?"#8ccbff":"#ffe38a";ctx.beginPath();ctx.arc(s.x,s.y,(s.w?1.4:2)*S,0,6.28);ctx.fill()});ctx.globalAlpha=1;
-  if(careDays()>=DAYS&&shownC>=DAYS-.05){
-    fly.t+=dt;
-    const cx=p.tipX+Math.cos(fly.t*.8)*58*S,cy=p.tipY-14*S+Math.sin(fly.t*1.6)*22*S,fl=Math.sin(fly.t*18);
-    ctx.save();ctx.translate(cx,cy);ctx.rotate(Math.cos(fly.t*.8)*-.4);
-    ctx.fillStyle="#ffb347";ctx.beginPath();ctx.ellipse(-4*S,-1*S,5.5*S,Math.max(1,6*S*Math.abs(fl)),-.5,0,6.28);ctx.fill();
-    ctx.beginPath();ctx.ellipse(4*S,-1*S,5.5*S,Math.max(1,6*S*Math.abs(fl)),.5,0,6.28);ctx.fill();
-    ctx.fillStyle="#3b2a3a";ctx.fillRect(-.9*S,-5*S,1.8*S,10*S);
-    ctx.restore();
-    if(Math.random()<.02)petals.push({x:p.tipX+rnd(-16,16)*S,y:p.tipY,vx:rnd(-8,8)*S,vy:rnd(14,26)*S,r:rnd(0,6)});
-  }
-  petals.forEach(q=>{q.x+=q.vx*dt+Math.sin(T*2+q.r)*.4*S;q.y+=q.vy*dt;q.r+=dt});
+  sparks.forEach(s=>{ctx.globalAlpha=clamp(s.l*1.5,0,1);ctx.fillStyle=s.w?"#8ccbff":"#aefff3";ctx.beginPath();ctx.arc(s.x,s.y,(s.w?1.4:2)*S,0,6.28);ctx.fill()});ctx.globalAlpha=1;
+  if(careDays()>=DAYS&&shownC>=DAYS-.05&&Math.random()<.025)petals.push({x:p.tipX+rnd(-18,18)*S,y:p.tipY,vx:rnd(-8,8)*S,vy:rnd(14,26)*S,r:rnd(0,6)});
+  petals.forEach(q=>{q.x+=q.vx*dt+Math.sin(T*2+q.r)*.4*S+WD*6*dt;q.y+=q.vy*dt;q.r+=dt});
   petals=petals.filter(q=>q.y<soilY()+4*S);
-  ctx.fillStyle="#ffb3cf";petals.forEach(q=>{ctx.beginPath();ctx.ellipse(q.x,q.y,3.2*S,1.8*S,q.r,0,6.28);ctx.fill()});
+  ctx.fillStyle="#a8f5ea";petals.forEach(q=>{ctx.beginPath();ctx.ellipse(q.x,q.y,3.2*S,1.8*S,q.r,0,6.28);ctx.fill()});
   raf=requestAnimationFrame(frame);
 }
 const kick=()=>{if(!raf)raf=requestAnimationFrame(frame)};
@@ -418,8 +422,7 @@ export async function initListPlant(uid){
   css();
   data=loadLocal()||fresh();saveLocal();
   shownC=careDays();shownM=moisture();
-  for(let i=0;i<40;i++)stars.push({x:Math.random(),y:Math.random(),r:rnd(.6,1.5),p:rnd(0,6)});
-  for(let i=0;i<3;i++)clouds.push({x:Math.random(),y:rnd(.1,.3),s:rnd(.8,1.3),v:rnd(5,10)});
+  seedScene();
   if(getComputedStyle(side).position==="static")side.style.position="relative";
   box=E("div");box.id="lplant";box.className="hide";box.setAttribute("aria-label","Flower plant");
   card=E("div","card");cv=E("canvas");cv.setAttribute("aria-hidden","true");ctx=cv.getContext("2d");
