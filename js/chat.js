@@ -130,7 +130,7 @@ async function boot(u){
   import("./celebrate.js"+V).then(m=>m.check(me.uid)).catch(()=>{});
   import("./status.js"+V).then(m=>m.initStatus({uid:me.uid,name:me.name,photo:me.photo||""},()=>chatsAll)).catch(()=>{});
   import("./together.js"+V).then(m=>m.initTogether(me.uid)).catch(()=>{});
- import("./listplant.js"+V).then(m=>m.initListPlant(me.uid)).catch(()=>{});
+ //import("./listplant.js"+V).then(m=>m.initListPlant(me.uid)).catch(()=>{});
   
   if(me.uid===OWNER_UID)show("adm",1);
   try{if(window.Android&&Android.setUser){Android.setUser(me.uid);Android.requestToken()}}catch(e){}
