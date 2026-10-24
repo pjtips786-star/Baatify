@@ -552,13 +552,38 @@ function setRep(m){
   const rth=$("rth");if(rth){if(th){rth.src=th;rth.classList.remove("hide")}else{rth.removeAttribute("src");rth.classList.add("hide")}}
   show("rbar",1);$("in").focus();
 }
-/* tap on a quoted reply: scroll to the original message and flash it */
-function jumpTo(id){
-  if(!id)return;
-  const t=$("msgs").querySelector('[data-mid="'+id+'"]');
-  if(!t){toast("Original message not found");return}
+/* tap on a quoted reply: original message tak scroll karo aur chamkao.
+   Agar wo bahut purana hai (abhi load nahi hua) to purane messages page-page karke tab tak load karo jab tak mil na jaye. */
+async function loadUntil(id){
+  const cid=cur&&cur.id;let guard=0;
+  while(!all.has(id)&&hasMore&&cur&&cur.id===cid&&guard++<80){
+    if(loadingOld){await new Promise(r=>setTimeout(r,150));continue}
+    const f=msgs[0];if(!f||!f.t)break;
+    if(clr&&tms(f.t)<=clr){hasMore=false;break}           // clear ki hui chat se pehle ke messages nahi
+    loadingOld=true;
+    try{
+      const s=await getDocs(query(collection(db,"chats",cid,"messages"),orderBy("t","desc"),startAfter(f.t),limit(PAGE)));
+      if(cur&&cur.id===cid){hasMore=s.docs.length>=PAGE;mergeMsgs(s.docs.map(d=>({id:d.id,...d.data(SNAP)})))}
+    }catch(e){loadingOld=false;return false}
+    loadingOld=false;
+  }
+  return all.has(id)&&!!cur&&cur.id===cid;
+}
+let jumping=false;
+async function jumpTo(id){
+  if(!id||jumping)return;
+  const find=()=>$("msgs").querySelector('[data-mid="'+id+'"]');
+  let t=find(),fresh=false;
+  if(!t){
+    jumping=true;toast("Finding original message...");
+    const ok=await loadUntil(id);
+    jumping=false;
+    if(!ok){toast("Original message not found");return}
+    stopAnim();pinned=false;renderMsgs();fresh=true;t=find();
+    if(!t){toast("Original message not found");return}
+  }
   stopAnim();pinned=false;
-  t.scrollIntoView({block:"center",behavior:"smooth"});
+  t.scrollIntoView({block:"center",behavior:fresh?"auto":"smooth"});
   t.classList.remove("hl");void t.offsetWidth;t.classList.add("hl");
   setTimeout(()=>t.classList.remove("hl"),1800);
 }
