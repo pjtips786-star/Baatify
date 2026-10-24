@@ -36,7 +36,9 @@ let inChat=false,vOpen=false,iOpen=false,cOpen=false;
 let all=new Map(),hasMore=true,loadingOld=false;
 const PAGE=30;
 let pinned=true,scAnim=null;
-let lastSig="";                          // pichhli baar jo messages dikhaye unki pehchan (bina badlav ke dobara draw na ho)
+let lastSig="";
+const chatMem=new Map();                  // har chat ke pichhle messages yaad, taaki wapas kholte hi turant dikhein
+function msgSig(){return msgs.map(m=>m.id+"|"+(m.pending?"p":"")+(m.sender===me.uid&&m.seen?"s":"")+(m.deleted?"d":"")+(m.edited?"e":"")+(m.stk?"k":"")+"|"+(m.text||"")+"|"+(m.img||"")+(m.video||"")+(m.audio?"a":"")+"|"+(m.reply?m.reply.t+(m.reply.th||""):"")).join("\n")}                          // pichhli baar jo messages dikhaye unki pehchan (bina badlav ke dobara draw na ho)
 let lastUser=0,lastTop=0;                 // user ne akhri baar kab scroll/touch kiya
 const userBusy=ms=>Date.now()-lastUser<ms;
 const uc=new Map();
@@ -262,7 +264,7 @@ async function search(v){
 /* ---------- Chat screen ---------- */
 async function openChat(o){
   const id=[me.uid,o.uid].sort().join("_");
-  cur={id,o};seen=new Set();vcache.clear();lastSig="";first=true;force=false;selId=null;editing=null;ou={};
+  cur={id,o};seen=new Set();if(vcache.size>300)vcache.clear();lastSig="";first=true;force=false;selId=null;editing=null;ou={};
   newCount=0;lastTs=0;show("jt",0);show("jw",0);
   all=new Map();hasMore=true;loadingOld=false;
   clr=clrOf(chatsAll.find(x=>x.id===id));
@@ -274,6 +276,8 @@ async function openChat(o){
   if(!inChat){history.pushState({bt:"chat"},"");inChat=true}
   ytStop();
   $("app").classList.add("open");$("msgs").textContent="";
+  const mem=chatMem.get(id);                                   // pehle khuli thi to purane messages turant dikhao, phir server se jo naya ho wahi jodo
+  if(mem&&mem.all.size){all=mem.all;hasMore=mem.hasMore;msgs=[...all.values()].sort((a,b)=>tms(a.t)-tms(b.t));renderMsgs();lastSig=msgSig()}
   try{
     if(!chatsAll.some(c=>c.id===id))
       await setDoc(doc(db,"chats",id),{members:[me.uid,o.uid].sort(),names:{[me.uid]:me.name,[o.uid]:o.name}},{merge:true});
@@ -288,7 +292,7 @@ unsubM=onSnapshot(
     s=>{
       mergeMsgs(s.docs.map(d=>({id:d.id,...d.data(SNAP),pending:d.metadata.hasPendingWrites})));
       // cache wala snapshot aur phir server wala snapshot ek jaise ho to dobara draw mat karo (isi se "reload" dikhta tha)
-      const sg=msgs.map(m=>m.id+"|"+(m.pending?"p":"")+(m.sender===me.uid&&m.seen?"s":"")+(m.deleted?"d":"")+(m.edited?"e":"")+(m.stk?"k":"")+"|"+(m.text||"")+"|"+(m.img||"")+(m.video||"")+(m.audio?"a":"")+"|"+(m.reply?m.reply.t+(m.reply.th||""):"")).join("\n");
+      const sg=msgSig();
       if(first||sg!==lastSig){lastSig=sg;renderMsgs()}
       markSeen();
     },
@@ -305,6 +309,8 @@ if(rec)recStop(true);
   if(pl){pl.a.pause();pl=null}
   if(resetUnread&&cur)updateDoc(doc(db,"chats",cur.id),{["unread."+me.uid]:0}).catch(()=>{});
   $("app").classList.remove("open");
+  if(cur&&all.size){chatMem.set(cur.id,{all,hasMore});if(chatMem.size>20)chatMem.delete(chatMem.keys().next().value)}
+  vcache.forEach(w=>{try{const v=w.tagName==='VIDEO'?w:w.querySelector&&w.querySelector('video');if(v&&!v.paused)v.pause()}catch(e){}});   // band chat ka video peeche na bajta rahe
   unsubM&&unsubM();unsubU&&unsubU();cur=null;selId=null;
   show("pane",0);show("empty",1);renderList();
   if(inChat){inChat=false;history.back()}
@@ -371,7 +377,7 @@ function renderMsgs(){
     }
     const mine=m.sender===me.uid,el=document.createElement("div");
     el.className="m"+(mine?" me":"")+(m.sender!==prev?" tail":"")+(m.deleted?" del":"")
-      +(selId===m.id?" sel":"")+(seen.has(m.id)?"":" new");
+      +(selId===m.id?" sel":"")+((first||seen.has(m.id))?"":" new");
     prev=m.sender;seen.add(m.id);
 
     if(m.deleted){
