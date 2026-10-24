@@ -306,6 +306,7 @@ function closeChat(resetUnread){
 ytStop();
 if(iOpen){iOpen=false;show("pinfo",0)}
 if(rec)recStop(true);
+  if(pv)pvDiscard();
   if(pl){pl.a.pause();pl=null}
   if(resetUnread&&cur)updateDoc(doc(db,"chats",cur.id),{["unread."+me.uid]:0}).catch(()=>{});
   $("app").classList.remove("open");
@@ -740,6 +741,69 @@ function recStop(cancel){
   rec.stream.getTracks().forEach(t=>t.stop());
 }
 
+/* ---- Voice preview: bhejne se pehle sun lo ---- */
+let pv=null;   // {blob,url,ext,dur,chat,a}
+function pvEnsure(){
+  if($("rpv"))return;
+  const st=document.createElement("style");
+  st.textContent="#rpv{display:flex;align-items:center;gap:10px;padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px));background:var(--panel);flex:none}#rpv.hide{display:none}#rpv .vbar{margin:0}#rpv .pt{min-width:40px;font-variant-numeric:tabular-nums;font-size:13px}#rpv button{border:0;cursor:pointer;flex:none}#rpv .pd{width:40px;height:40px;border-radius:50%;background:transparent;color:inherit;display:grid;place-items:center}#rpv .pd .i{width:20px;height:20px}#rpv .ps{width:44px;height:44px;border-radius:50%;background:var(--g);color:#fff;display:grid;place-items:center}#rpv .ps .i{width:20px;height:20px}";
+  document.head.appendChild(st);
+  const d=document.createElement("div");d.id="rpv";d.className="hide";
+  d.innerHTML='<button type="button" class="pd" id="rpd" aria-label="Delete voice message">'+ico("trash")+'</button>'
+    +'<button type="button" class="vp" id="rpp" aria-label="Play">'+ico("play")+'</button>'
+    +'<div class="vbar" id="rpb"><div class="vfill" id="rpf"></div></div>'
+    +'<span class="pt" id="rpt">0:00</span>'
+    +'<button type="button" class="ps" id="rps" aria-label="Send voice message">'+ico("send")+'</button>';
+  $("rec").parentNode.insertBefore(d,$("rec"));
+  $("rpd").onclick=pvDiscard;
+  $("rps").onclick=pvSend;
+  $("rpp").onclick=pvToggle;
+  $("rpb").onclick=e=>{
+    if(!pv)return;
+    const r=$("rpb").getBoundingClientRect();
+    const f=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width));
+    pv.a.currentTime=pv.dur*f;pvPaint();
+  };
+}
+function pvPaint(){
+  if(!pv)return;
+  const a=pv.a,t=a.currentTime||0;
+  $("rpf").style.width=Math.min(100,t/pv.dur*100)+"%";
+  $("rpt").textContent=fmtDur(a.paused&&t===0?pv.dur:Math.min(t,pv.dur));
+  $("rpp").innerHTML=ico(a.paused?"play":"pause");
+  $("rpp").setAttribute("aria-label",a.paused?"Play":"Pause");
+}
+function pvToggle(){
+  if(!pv)return;
+  const a=pv.a;
+  if(a.paused){
+    if(pl&&pl.a&&!pl.a.paused)pl.a.pause();   // aane wala voice message ruk jaye
+    if(a.ended||a.currentTime>=pv.dur-0.05)a.currentTime=0;
+    a.play().catch(()=>toast("Could not play"));
+  }else a.pause();
+  pvPaint();
+}
+function pvDiscard(){
+  if(pv){try{pv.a.pause()}catch(e){}URL.revokeObjectURL(pv.url);pv=null}
+  if($("rpv"))show("rpv",0);
+  if(cur)show("f",1);
+}
+async function pvSend(){
+  const r=pv;if(!r)return;
+  try{r.a.pause()}catch(e){}
+  pv=null;show("rpv",0);show("f",1);
+  const box=$("msgs"),tmp=document.createElement("div");
+  tmp.className="m me new";tmp.textContent="Sending voice message… 0%";
+  box.appendChild(tmp);box.scrollTop=box.scrollHeight;
+  try{
+    const url=await uploadAudio(r.blob,r.ext,p=>{tmp.textContent="Sending voice message… "+p+"%"});
+    URL.revokeObjectURL(r.url);
+    if(!cur||cur.id!==r.chat){tmp.remove();return toast("Chat changed, voice message not sent")}
+    force=true;await send({audio:url,dur:r.dur});
+  }catch(e){toast("Voice upload failed"+(typeof e==="string"?": "+e:""))}
+  tmp.remove();
+}
+
 async function recDone(){
   const r=rec;rec=null;
   show("rec",0);show("f",1);
@@ -748,15 +812,13 @@ async function recDone(){
   if(ms<800)return toast("Hold a bit longer to record");
   const dur=Math.min(60,Math.max(1,Math.round(ms/1000)));
   const ext=/mp4/.test(r.mime)?"m4a":/ogg/.test(r.mime)?"ogg":"webm";
-  const box=$("msgs"),tmp=document.createElement("div");
-  tmp.className="m me new";tmp.textContent="Sending voice message… 0%";
-  box.appendChild(tmp);box.scrollTop=box.scrollHeight;
-  try{
-    const url=await uploadAudio(new Blob(r.chunks,{type:r.mime}),ext,p=>{tmp.textContent="Sending voice message… "+p+"%"});
-    if(!cur||cur.id!==r.chat){tmp.remove();return toast("Chat changed, voice message not sent")}
-    force=true;await send({audio:url,dur});
-  }catch(e){toast("Voice upload failed"+(typeof e==="string"?": "+e:""))}
-  tmp.remove();
+  pvDiscard();pvEnsure();
+  const blob=new Blob(r.chunks,{type:r.mime}),url=URL.createObjectURL(blob);
+  const a=new Audio(url);a.preload="auto";
+  pv={blob,url,ext,dur,chat:r.chat,a};
+  a.onended=()=>{a.currentTime=0;pvPaint()};
+  a.onpause=pvPaint;a.onplay=pvPaint;a.ontimeupdate=pvPaint;
+  show("f",0);show("rpv",1);pvPaint();
 }
 
 $("mic").onclick=recStart;
