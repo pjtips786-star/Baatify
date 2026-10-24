@@ -36,6 +36,7 @@ let inChat=false,vOpen=false,iOpen=false,cOpen=false;
 let all=new Map(),hasMore=true,loadingOld=false;
 const PAGE=30;
 let pinned=true,scAnim=null;
+let lastSig="";                          // pichhli baar jo messages dikhaye unki pehchan (bina badlav ke dobara draw na ho)
 let lastUser=0,lastTop=0;                 // user ne akhri baar kab scroll/touch kiya
 const userBusy=ms=>Date.now()-lastUser<ms;
 const uc=new Map();
@@ -261,7 +262,7 @@ async function search(v){
 /* ---------- Chat screen ---------- */
 async function openChat(o){
   const id=[me.uid,o.uid].sort().join("_");
-  cur={id,o};seen=new Set();vcache.clear();first=true;force=false;selId=null;editing=null;ou={};
+  cur={id,o};seen=new Set();vcache.clear();lastSig="";first=true;force=false;selId=null;editing=null;ou={};
   newCount=0;lastTs=0;show("jt",0);show("jw",0);
   all=new Map();hasMore=true;loadingOld=false;
   clr=clrOf(chatsAll.find(x=>x.id===id));
@@ -286,7 +287,10 @@ unsubM=onSnapshot(
     {includeMetadataChanges:true},
     s=>{
       mergeMsgs(s.docs.map(d=>({id:d.id,...d.data(SNAP),pending:d.metadata.hasPendingWrites})));
-      renderMsgs();markSeen();
+      // cache wala snapshot aur phir server wala snapshot ek jaise ho to dobara draw mat karo (isi se "reload" dikhta tha)
+      const sg=msgs.map(m=>m.id+"|"+(m.pending?"p":"")+(m.sender===me.uid&&m.seen?"s":"")+(m.deleted?"d":"")+(m.edited?"e":"")+(m.stk?"k":"")+"|"+(m.text||"")+"|"+(m.img||"")+(m.video||"")+(m.audio?"a":"")+"|"+(m.reply?m.reply.t+(m.reply.th||""):"")).join("\n");
+      if(first||sg!==lastSig){lastSig=sg;renderMsgs()}
+      markSeen();
     },
     ()=>toast("Cannot load messages")
   );
@@ -388,8 +392,8 @@ function renderMsgs(){
       else if(m.img){
         el.classList.add("big");
         if(m.stk){el.classList.remove("big");el.classList.add("stk")}
-        const im=document.createElement("img");
-        im.src=m.img;im.alt="Photo";im.loading="lazy";
+        const ik=m.id+"|img";let im=vcache.get(ik);                 // wahi photo element dobara lagao, taaki list dobara bane to photo na chamke
+        if(!im||im.dataset.src!==m.img){im=document.createElement("img");im.dataset.src=m.img;vcache.set(ik,im);im.src=m.img;im.alt="Photo";im.loading="lazy"}
         im.onload=()=>{if(pinned&&!userBusy(600))box.scrollTop=box.scrollHeight};   // photo der se load ho to bhi tabhi neeche jao jab user abhi bhi neeche ho
         im.onclick=e=>{e.stopPropagation();vurl=m.img;$("vimg").src=m.img;show("view",1);history.pushState({bt:"view"},"");vOpen=true};
         el.appendChild(im);
