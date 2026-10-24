@@ -36,6 +36,8 @@ let inChat=false,vOpen=false,iOpen=false,cOpen=false;
 let all=new Map(),hasMore=true,loadingOld=false;
 const PAGE=30;
 let pinned=true,scAnim=null;
+let lastUser=0,lastTop=0;                 // user ne akhri baar kab scroll/touch kiya
+const userBusy=ms=>Date.now()-lastUser<ms;
 const uc=new Map();
 const fmtDur=s=>{s=Math.floor(s||0);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
 let rec=null,pl=null;
@@ -48,7 +50,7 @@ function fit(){
   document.documentElement.style.setProperty("--vh",h+"px");
   $("app").style.top=(vv?vv.offsetTop:0)+"px";
   window.scrollTo(0,0);
-  const mb=$("msgs");if(mb&&pinned)mb.scrollTop=mb.scrollHeight;
+  const mb=$("msgs");if(mb&&pinned&&!userBusy(500))mb.scrollTop=mb.scrollHeight;
 }
 let fitT=0;
 function fitSoon(){fit();clearTimeout(fitT);fitT=setTimeout(fit,150);setTimeout(fit,400)}
@@ -366,17 +368,21 @@ function renderMsgs(){
     const mine=m.sender===me.uid,el=document.createElement("div");
     el.className="m"+(mine?" me":"")+(m.sender!==prev?" tail":"")+(m.deleted?" del":"")
       +(selId===m.id?" sel":"")+(seen.has(m.id)?"":" new");
-    prev=m.sender;seen.add(m.id);
+    prev=m.sender;seen.add(m.id);el.dataset.mid=m.id;
 
     if(m.deleted){
       const t=document.createElement("div");t.className="tx2";
       t.innerHTML=ico("ban")+"<span>This message was deleted</span>";el.appendChild(t);
     }else{
       if(m.reply){
-        const r=document.createElement("div");r.className="rp";
+        const r=document.createElement("div");r.className="rp"+(m.reply.id?" go":"");
+        const rx=document.createElement("div");rx.className="rpt";
         const rb=document.createElement("b");rb.textContent=m.reply.n;
         const rs=document.createElement("span");rs.textContent=m.reply.t;
-        r.append(rb,rs);el.appendChild(r);
+        rx.append(rb,rs);r.appendChild(rx);
+        if(m.reply.th){const ri=document.createElement("img");ri.className="rpi";ri.src=m.reply.th;ri.alt="";ri.loading="lazy";ri.onerror=()=>ri.remove();r.appendChild(ri)}
+        r.onclick=e=>{e.stopPropagation();jumpTo(m.reply.id)};
+        el.appendChild(r);
       }
       if(m.audio){el.appendChild(voiceEl(m))}
       else if(m.video){el.classList.add("big");el.appendChild(videoEl(m))}
@@ -385,7 +391,7 @@ function renderMsgs(){
         if(m.stk){el.classList.remove("big");el.classList.add("stk")}
         const im=document.createElement("img");
         im.src=m.img;im.alt="Photo";im.loading="lazy";
-        im.onload=()=>{if(stickNow)box.scrollTop=box.scrollHeight};
+        im.onload=()=>{if(pinned&&!userBusy(600))box.scrollTop=box.scrollHeight};   // photo der se load ho to bhi tabhi neeche jao jab user abhi bhi neeche ho
         im.onclick=e=>{e.stopPropagation();vurl=m.img;$("vimg").src=m.img;show("view",1);history.pushState({bt:"view"},"");vOpen=true};
         el.appendChild(im);
       }else{
@@ -441,6 +447,7 @@ function renderMsgs(){
 $("msgs").onclick=e=>{if(e.target===$("msgs")&&selId){selId=null;renderMsgs()}};
 /* ---------- Smooth scroll (list dobara bane tab bhi na ruke) ---------- */
 function smoothBottom(){
+  stopAnim();                                             // pehla animation band, taaki do loop ek saath na chalein
   const box=$("msgs"),t0=performance.now(),from=box.scrollTop,dur=380;
   (function step(now){
     const k=Math.min(1,(now-t0)/dur),e=1-Math.pow(1-k,3);
@@ -452,9 +459,15 @@ function smoothBottom(){
 }
 function stopAnim(){if(scAnim){cancelAnimationFrame(scAnim);scAnim=null}}
 ["touchstart","wheel","pointerdown"].forEach(ev=>$("msgs").addEventListener(ev,stopAnim,{passive:true}));
+["touchstart","touchmove","wheel","pointerdown"].forEach(ev=>$("msgs").addEventListener(ev,()=>{lastUser=Date.now()},{passive:true}));
 $("msgs").addEventListener("scroll",()=>{
-  if(scAnim)return;                                       // apne animation ko ignore karo
-  const b=$("msgs");pinned=b.scrollHeight-b.scrollTop-b.clientHeight<140;
+  const b=$("msgs"),top=b.scrollTop,dist=b.scrollHeight-top-b.clientHeight;
+  const up=top<lastTop-1;lastTop=top;
+  if(!scAnim){                                            // apne animation ko ignore karo
+    if(up&&userBusy(900)&&dist>6)pinned=false;            // user ne zara bhi upar kheencha: turant neeche chipkna band
+    else if(dist<40)pinned=true;                          // bilkul neeche pahunch gaya
+    else if(dist>=140)pinned=false;
+  }
   updateJd();
   if(b.scrollTop<60)loadOlder();
 });
@@ -529,10 +542,25 @@ $("m2").onclick=()=>{if(cur)delChat(cur.id,cur.o.name)};
 $("m3").onclick=logout;
 
 /* ---------- Reply / edit bar ---------- */
+const rthumb=u=>typeof u==="string"&&u.includes("res.cloudinary.com")&&u.includes("/upload/")?u.replace("/upload/","/upload/c_fill,w_120,h_120,q_auto/"):"";
 function setRep(m){
   clearRep();
-  rep={n:m.sender===me.uid?"You":cur.o.name,t:(m.text||(m.audio?"Voice message":m.video?"Video":"Photo")).slice(0,80)};
-  $("rn").textContent=rep.n;$("rt").textContent=rep.t;show("rbar",1);$("in").focus();
+  const k=m.text?"txt":m.audio?"aud":m.video?"vid":"img";
+  const th=k==="img"?rthumb(m.img):k==="vid"?vposter(m.video):"";
+  rep={n:m.sender===me.uid?"You":cur.o.name,t:(m.text||(k==="aud"?"Voice message":k==="vid"?"Video":m.stk?"Sticker":"Photo")).slice(0,80),id:m.id,k,th};
+  $("rn").textContent=rep.n;$("rt").textContent=rep.t;
+  const rth=$("rth");if(rth){if(th){rth.src=th;rth.classList.remove("hide")}else{rth.removeAttribute("src");rth.classList.add("hide")}}
+  show("rbar",1);$("in").focus();
+}
+/* tap on a quoted reply: scroll to the original message and flash it */
+function jumpTo(id){
+  if(!id)return;
+  const t=$("msgs").querySelector('[data-mid="'+id+'"]');
+  if(!t){toast("Original message not found");return}
+  stopAnim();pinned=false;
+  t.scrollIntoView({block:"center",behavior:"smooth"});
+  t.classList.remove("hl");void t.offsetWidth;t.classList.add("hl");
+  setTimeout(()=>t.classList.remove("hl"),1800);
 }
 function clearRep(){rep=null;editing=null;show("rbar",0)}
 $("rx").onclick=()=>{if(editing){$("in").value="";grow()}clearRep()};
@@ -1210,8 +1238,9 @@ function placeJw(){
 new ResizeObserver(placeJw).observe($("msgs"));                    // keyboard ya reply bar se jagah badle to saath chale
 
 function updateJd(){
-  if(pinned){newCount=0;show("jt",0)}
-  show("jw",!pinned&&!!cur);
+  const mb=$("msgs"),dist=mb.scrollHeight-mb.scrollTop-mb.clientHeight;
+  if(pinned&&dist<90){newCount=0;show("jt",0)}
+  show("jw",!!cur&&dist>90&&!(pinned&&scAnim));          // arrow tabhi aaye jab sach me neeche se door ho (tez scroll par bhi)
   const b=$("jd").querySelector(".jb");
   b.textContent=newCount>9?"9+":newCount;b.classList.toggle("hide",!newCount);
   placeJw();
@@ -1227,6 +1256,7 @@ function jtShow(m){
 
 function jump(){newCount=0;pinned=true;show("jt",0);updateJd();smoothBottom()}
 $("jd").onclick=jump;
+setInterval(()=>{if(cur&&!document.hidden)updateJd()},500);      // koi scroll event chhoot jaye to arrow ki sthiti theek ho jaye
 $("jt").onclick=jump;
 /* ---------- Camera (emoji ki jagah) ---------- */
 $("eb").innerHTML=ico("camera");$("eb").setAttribute("aria-label","Camera");
