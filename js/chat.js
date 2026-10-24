@@ -368,20 +368,19 @@ function renderMsgs(){
     const mine=m.sender===me.uid,el=document.createElement("div");
     el.className="m"+(mine?" me":"")+(m.sender!==prev?" tail":"")+(m.deleted?" del":"")
       +(selId===m.id?" sel":"")+(seen.has(m.id)?"":" new");
-    prev=m.sender;seen.add(m.id);el.dataset.mid=m.id;
+    prev=m.sender;seen.add(m.id);
 
     if(m.deleted){
       const t=document.createElement("div");t.className="tx2";
       t.innerHTML=ico("ban")+"<span>This message was deleted</span>";el.appendChild(t);
     }else{
       if(m.reply){
-        const r=document.createElement("div");r.className="rp"+(m.reply.id?" go":"");
+        const r=document.createElement("div");r.className="rp";
         const rx=document.createElement("div");rx.className="rpt";
         const rb=document.createElement("b");rb.textContent=m.reply.n;
         const rs=document.createElement("span");rs.textContent=m.reply.t;
         rx.append(rb,rs);r.appendChild(rx);
         if(m.reply.th){const ri=document.createElement("img");ri.className="rpi";ri.src=m.reply.th;ri.alt="";ri.loading="lazy";ri.onerror=()=>ri.remove();r.appendChild(ri)}
-        r.onclick=e=>{e.stopPropagation();jumpTo(m.reply.id)};
         el.appendChild(r);
       }
       if(m.audio){el.appendChild(voiceEl(m))}
@@ -551,41 +550,6 @@ function setRep(m){
   $("rn").textContent=rep.n;$("rt").textContent=rep.t;
   const rth=$("rth");if(rth){if(th){rth.src=th;rth.classList.remove("hide")}else{rth.removeAttribute("src");rth.classList.add("hide")}}
   show("rbar",1);$("in").focus();
-}
-/* tap on a quoted reply: original message tak scroll karo aur chamkao.
-   Agar wo bahut purana hai (abhi load nahi hua) to purane messages page-page karke tab tak load karo jab tak mil na jaye. */
-async function loadUntil(id){
-  const cid=cur&&cur.id;let guard=0;
-  while(!all.has(id)&&hasMore&&cur&&cur.id===cid&&guard++<80){
-    if(loadingOld){await new Promise(r=>setTimeout(r,150));continue}
-    const f=msgs[0];if(!f||!f.t)break;
-    if(clr&&tms(f.t)<=clr){hasMore=false;break}           // clear ki hui chat se pehle ke messages nahi
-    loadingOld=true;
-    try{
-      const s=await getDocs(query(collection(db,"chats",cid,"messages"),orderBy("t","desc"),startAfter(f.t),limit(PAGE)));
-      if(cur&&cur.id===cid){hasMore=s.docs.length>=PAGE;mergeMsgs(s.docs.map(d=>({id:d.id,...d.data(SNAP)})))}
-    }catch(e){loadingOld=false;return false}
-    loadingOld=false;
-  }
-  return all.has(id)&&!!cur&&cur.id===cid;
-}
-let jumping=false;
-async function jumpTo(id){
-  if(!id||jumping)return;
-  const find=()=>$("msgs").querySelector('[data-mid="'+id+'"]');
-  let t=find(),fresh=false;
-  if(!t){
-    jumping=true;toast("Finding original message...");
-    const ok=await loadUntil(id);
-    jumping=false;
-    if(!ok){toast("Original message not found");return}
-    stopAnim();pinned=false;renderMsgs();fresh=true;t=find();
-    if(!t){toast("Original message not found");return}
-  }
-  stopAnim();pinned=false;
-  t.scrollIntoView({block:"center",behavior:fresh?"auto":"smooth"});
-  t.classList.remove("hl");void t.offsetWidth;t.classList.add("hl");
-  setTimeout(()=>t.classList.remove("hl"),1800);
 }
 function clearRep(){rep=null;editing=null;show("rbar",0)}
 $("rx").onclick=()=>{if(editing){$("in").value="";grow()}clearRep()};
