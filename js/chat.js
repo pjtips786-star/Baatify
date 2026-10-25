@@ -1321,7 +1321,7 @@ setInterval(()=>{if(cur&&!document.hidden)updateJd()},500);      // koi scroll e
 $("jt").onclick=jump;
 /* ---------- Camera (emoji ki jagah) ---------- */
 $("eb").innerHTML=ico("camera");$("eb").setAttribute("aria-label","Camera");
-let camS=null,camF="environment",camB=null,camU="";
+let camS=null,camF="environment",camB=null,camU="",camTorch=false,camZoom=1,camGrid=false,camCaps={};
 const camEl=()=>document.getElementById("camw");
 
 function stopTracks(){if(camS){camS.getTracks().forEach(t=>t.stop());camS=null}}
@@ -1340,18 +1340,112 @@ async function startCam(){
     camS=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:camF}},audio:false});
     if(!camEl()){stopTracks();return}
     const v=w.querySelector(".camv");v.srcObject=camS;v.classList.toggle("front",camF==="user");
+    camCtl(w);
   }catch(e){
     toast(e&&e.name==="NotAllowedError"?"Allow camera permission":e&&e.name==="NotReadableError"?"Camera is in use by another app":"Could not open camera");
     closeCam();
   }
 }
 
+const CAMI={
+  flash:'<svg viewBox="0 0 24 24" class="i"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+  grid:'<svg viewBox="0 0 24 24" class="i"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>'
+};
+function camStyle(){
+  if(document.getElementById("camcss"))return;
+  const st=document.createElement("style");st.id="camcss";
+  st.textContent=".camtools{position:absolute;right:12px;top:calc(12px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:10px;z-index:2}"
+  +".ctb{width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.18);color:#fff;display:grid;place-items:center;cursor:pointer}"
+  +".ctb.on{background:#ffd54a;color:#000}.ctb .i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round}.ctb.cflash.on .i{fill:#000}"
+  +".camgrid{position:absolute;left:0;right:0;top:0;pointer-events:none;z-index:1;background:linear-gradient(90deg,transparent calc(33.33% - .5px),rgba(255,255,255,.45) calc(33.33% - .5px),rgba(255,255,255,.45) calc(33.33% + .5px),transparent calc(33.33% + .5px),transparent calc(66.66% - .5px),rgba(255,255,255,.45) calc(66.66% - .5px),rgba(255,255,255,.45) calc(66.66% + .5px),transparent calc(66.66% + .5px)),linear-gradient(0deg,transparent calc(33.33% - .5px),rgba(255,255,255,.45) calc(33.33% - .5px),rgba(255,255,255,.45) calc(33.33% + .5px),transparent calc(33.33% + .5px),transparent calc(66.66% - .5px),rgba(255,255,255,.45) calc(66.66% - .5px),rgba(255,255,255,.45) calc(66.66% + .5px),transparent calc(66.66% + .5px))}"
+  +".camsl{position:absolute;left:0;right:0;z-index:2;display:flex;flex-direction:column;gap:6px;padding:0 20px}"
+  +".camsl label{display:flex;align-items:center;gap:10px;color:#fff;font-size:13px;background:rgba(0,0,0,.35);border-radius:20px;padding:6px 14px}"
+  +".camsl label.hide{display:none}.camsl span{width:42px}.camsl input{flex:1;min-width:0;accent-color:#34b7f1}.camsl b{min-width:34px;text-align:right;font-weight:600}"
+  +".camring{position:absolute;width:66px;height:66px;margin:-33px 0 0 -33px;border:2px solid #ffd54a;border-radius:50%;z-index:3;pointer-events:none;animation:camring .9s ease-out forwards}"
+  +"@keyframes camring{0%{transform:scale(1.5);opacity:0}20%{opacity:1}100%{transform:scale(1);opacity:0}}";
+  document.head.appendChild(st);
+}
+function camApply(c){
+  const t=camS&&camS.getVideoTracks()[0];if(!t)return Promise.resolve();
+  return t.applyConstraints({advanced:[c]}).catch(()=>{});
+}
+function camLayout(w){          // slider bar ke upar, grid video ke upar
+  const bar=w.querySelector(".cam1"),sl=w.querySelector(".camsl"),g=w.querySelector(".camgrid");
+  const h=bar.classList.contains("hide")?0:bar.offsetHeight;
+  sl.style.bottom=(h+8)+"px";g.style.bottom=h+"px";
+}
+function camCtl(w){
+  camStyle();
+  const t=camS&&camS.getVideoTracks()[0];
+  camCaps=(t&&t.getCapabilities)?t.getCapabilities():{};
+  const fl=w.querySelector(".cflash"),gr=w.querySelector(".cgrid"),gd=w.querySelector(".camgrid");
+  const rz=w.querySelector(".rz"),re=w.querySelector(".re"),vz=w.querySelector(".vz");
+  const cz=w.querySelector(".csz"),ce=w.querySelector(".cse");
+  // flash (torch) - sirf jahan phone/browser deta hai
+  fl.classList.toggle("hide",!camCaps.torch);fl.classList.remove("on");camTorch=false;
+  fl.onclick=()=>{camTorch=!camTorch;fl.classList.toggle("on",camTorch);camApply({torch:camTorch})};
+  // grid lines
+  gd.classList.toggle("hide",!camGrid);gr.classList.toggle("on",camGrid);
+  gr.onclick=()=>{camGrid=!camGrid;gd.classList.toggle("hide",!camGrid);gr.classList.toggle("on",camGrid)};
+  // zoom
+  const z=camCaps.zoom;
+  cz.classList.toggle("hide",!(z&&z.max>z.min));
+  if(z&&z.max>z.min){
+    rz.min=z.min;rz.max=z.max;rz.step=z.step||0.1;camZoom=Math.max(z.min,Math.min(z.max,camZoom));rz.value=camZoom;vz.textContent=(+camZoom).toFixed(1)+"x";
+    rz.oninput=()=>{camZoom=+rz.value;vz.textContent=camZoom.toFixed(1)+"x";camApply({zoom:camZoom})};
+    if(camZoom>(z.min||1))camApply({zoom:camZoom});
+  }
+  // light (exposure)
+  const e=camCaps.exposureCompensation;
+  ce.classList.toggle("hide",!(e&&e.max>e.min));
+  if(e&&e.max>e.min){
+    re.min=e.min;re.max=e.max;re.step=e.step||0.1;re.value=0;
+    re.oninput=()=>camApply({exposureCompensation:+re.value});
+  }
+  // continuous focus chalu rakho
+  if(camCaps.focusMode&&camCaps.focusMode.indexOf("continuous")>-1)camApply({focusMode:"continuous"});
+  // tap-to-focus + pinch zoom
+  const v=w.querySelector(".camv");
+  let pd=0,pz=1,moved=false;
+  const dist=ts=>Math.hypot(ts[0].clientX-ts[1].clientX,ts[0].clientY-ts[1].clientY);
+  v.ontouchstart=ev=>{moved=false;if(ev.touches.length===2){pd=dist(ev.touches);pz=camZoom}};
+  v.ontouchmove=ev=>{
+    if(ev.touches.length===2&&pd&&z&&z.max>z.min){
+      moved=true;ev.preventDefault();
+      camZoom=Math.max(z.min,Math.min(z.max,pz*dist(ev.touches)/pd));
+      rz.value=camZoom;vz.textContent=camZoom.toFixed(1)+"x";camApply({zoom:camZoom});
+    }
+  };
+  v.ontouchend=ev=>{
+    if(ev.touches.length===0&&!moved&&ev.changedTouches.length===1&&pd===0)tapFocus(w,v,ev.changedTouches[0]);
+    if(ev.touches.length===0){pd=0}
+  };
+  v.onclick=ev=>{if(!("ontouchstart" in window))tapFocus(w,v,ev)};
+  camLayout(w);
+}
+function tapFocus(w,v,pt){
+  const r=v.getBoundingClientRect();
+  const x=pt.clientX,y=pt.clientY;
+  const ring=document.createElement("div");ring.className="camring";
+  ring.style.left=x+"px";ring.style.top=y+"px";w.appendChild(ring);setTimeout(()=>ring.remove(),900);
+  const px=Math.min(1,Math.max(0,(x-r.left)/r.width)),py=Math.min(1,Math.max(0,(y-r.top)/r.height));
+  const m=camCaps.focusMode||[];
+  const c={pointsOfInterest:[{x:camF==="user"?1-px:px,y:py}]};
+  if(m.indexOf("single-shot")>-1)c.focusMode="single-shot";
+  camApply(c).then(()=>{if(m.indexOf("continuous")>-1)setTimeout(()=>camApply({focusMode:"continuous"}),2500)});
+}
+
 function openCam(){
   if(!cur||camEl())return;
+  const ae=document.activeElement;if(ae&&ae!==document.body&&ae.blur)ae.blur();   // keyboard band karo
+  camTorch=false;camZoom=1;camGrid=false;
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return toast("Camera needs HTTPS and a modern browser");
   const w=document.createElement("div");w.className="camw";w.id="camw";
   w.innerHTML='<video class="camv" autoplay playsinline muted></video><img class="camp hide" alt="">'+
     '<button type="button" class="camx" aria-label="Close">'+ico("x")+'</button>'+
+    '<div class="camgrid hide"></div>'+
+    '<div class="camtools"><button type="button" class="ctb cflash hide" aria-label="Flash">'+CAMI.flash+'</button><button type="button" class="ctb cgrid" aria-label="Grid lines">'+CAMI.grid+'</button></div>'+
+    '<div class="camsl"><label class="csz hide"><span>Zoom</span><input type="range" class="rz" step="0.1"><b class="vz">1x</b></label><label class="cse hide"><span>Light</span><input type="range" class="re"></label></div>'+
     '<div class="cambar cam1"><span></span><button type="button" class="camshot" aria-label="Take photo"></button><button type="button" class="camflip" aria-label="Switch camera">'+ico("flip")+'</button></div>'+
     '<div class="cambar cam2 hide"><button type="button" class="camretake">Retake</button><button type="button" class="camsend">Send</button></div>';
   document.body.appendChild(w);
@@ -1369,12 +1463,14 @@ function openCam(){
       if(!b)return toast("Could not take photo");
       camB=b;camU=URL.createObjectURL(b);p.src=camU;
       v.classList.add("hide");p.classList.remove("hide");b1.classList.add("hide");b2.classList.remove("hide");
+      w.querySelector(".camsl").classList.add("hide");w.querySelector(".camtools").classList.add("hide");
       stopTracks();
     },"image/jpeg",.92);
   };
   w.querySelector(".camretake").onclick=()=>{
     p.classList.add("hide");v.classList.remove("hide");b2.classList.add("hide");b1.classList.remove("hide");
     if(camU){URL.revokeObjectURL(camU);camU=""}
+    w.querySelector(".camsl").classList.remove("hide");w.querySelector(".camtools").classList.remove("hide");
     camB=null;startCam();
   };
   w.querySelector(".camsend").onclick=()=>{
