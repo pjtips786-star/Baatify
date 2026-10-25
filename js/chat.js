@@ -1349,6 +1349,7 @@ async function startCam(){
 
 const CAMI={
   flash:'<svg viewBox="0 0 24 24" class="i"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+  sun:'<svg viewBox="0 0 24 24" class="i"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
   grid:'<svg viewBox="0 0 24 24" class="i"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>'
 };
 function camStyle(){
@@ -1360,6 +1361,7 @@ function camStyle(){
   +".camgrid{position:absolute;left:0;right:0;top:0;pointer-events:none;z-index:1;background:linear-gradient(90deg,transparent calc(33.33% - .5px),rgba(255,255,255,.45) calc(33.33% - .5px),rgba(255,255,255,.45) calc(33.33% + .5px),transparent calc(33.33% + .5px),transparent calc(66.66% - .5px),rgba(255,255,255,.45) calc(66.66% - .5px),rgba(255,255,255,.45) calc(66.66% + .5px),transparent calc(66.66% + .5px)),linear-gradient(0deg,transparent calc(33.33% - .5px),rgba(255,255,255,.45) calc(33.33% - .5px),rgba(255,255,255,.45) calc(33.33% + .5px),transparent calc(33.33% + .5px),transparent calc(66.66% - .5px),rgba(255,255,255,.45) calc(66.66% - .5px),rgba(255,255,255,.45) calc(66.66% + .5px),transparent calc(66.66% + .5px))}"
   +".camsl{position:absolute;left:0;right:0;z-index:2;display:flex;flex-direction:column;gap:6px;padding:0 20px}"
   +".camsl label{display:flex;align-items:center;gap:10px;color:#fff;font-size:13px;background:rgba(0,0,0,.35);border-radius:20px;padding:6px 14px}"
+  +".camzv{position:absolute;left:50%;transform:translateX(-50%);top:calc(16px + env(safe-area-inset-top,0px));z-index:2;background:rgba(0,0,0,.45);color:#fff;font-weight:600;padding:5px 14px;border-radius:16px;pointer-events:none}.camzv.hide{display:none}"
   +".camsl label.hide{display:none}.camsl span{width:42px}.camsl input{flex:1;min-width:0;accent-color:#34b7f1}.camsl b{min-width:34px;text-align:right;font-weight:600}"
   +".camring{position:absolute;width:66px;height:66px;margin:-33px 0 0 -33px;border:2px solid #ffd54a;border-radius:50%;z-index:3;pointer-events:none;animation:camring .9s ease-out forwards}"
   +"@keyframes camring{0%{transform:scale(1.5);opacity:0}20%{opacity:1}100%{transform:scale(1);opacity:0}}";
@@ -1379,26 +1381,25 @@ function camCtl(w){
   const t=camS&&camS.getVideoTracks()[0];
   camCaps=(t&&t.getCapabilities)?t.getCapabilities():{};
   const fl=w.querySelector(".cflash"),gr=w.querySelector(".cgrid"),gd=w.querySelector(".camgrid");
-  const rz=w.querySelector(".rz"),re=w.querySelector(".re"),vz=w.querySelector(".vz");
-  const cz=w.querySelector(".csz"),ce=w.querySelector(".cse");
+  const re=w.querySelector(".re"),ce=w.querySelector(".cse"),lb=w.querySelector(".clight");
+  const vz=w.querySelector(".camzv");
   // flash (torch) - sirf jahan phone/browser deta hai
   fl.classList.toggle("hide",!camCaps.torch);fl.classList.remove("on");camTorch=false;
   fl.onclick=()=>{camTorch=!camTorch;fl.classList.toggle("on",camTorch);camApply({torch:camTorch})};
   // grid lines
   gd.classList.toggle("hide",!camGrid);gr.classList.toggle("on",camGrid);
   gr.onclick=()=>{camGrid=!camGrid;gd.classList.toggle("hide",!camGrid);gr.classList.toggle("on",camGrid)};
-  // zoom
+  // zoom: sirf do ungli se pinch
   const z=camCaps.zoom;
-  cz.classList.toggle("hide",!(z&&z.max>z.min));
-  if(z&&z.max>z.min){
-    rz.min=z.min;rz.max=z.max;rz.step=z.step||0.1;camZoom=Math.max(z.min,Math.min(z.max,camZoom));rz.value=camZoom;vz.textContent=(+camZoom).toFixed(1)+"x";
-    rz.oninput=()=>{camZoom=+rz.value;vz.textContent=camZoom.toFixed(1)+"x";camApply({zoom:camZoom})};
-    if(camZoom>(z.min||1))camApply({zoom:camZoom});
-  }
+  let zt=0;
+  const zshow=()=>{vz.textContent=camZoom.toFixed(1)+"x";vz.classList.remove("hide");clearTimeout(zt);zt=setTimeout(()=>vz.classList.add("hide"),900)};
+  if(z&&z.max>z.min){camZoom=Math.max(z.min,Math.min(z.max,camZoom));if(camZoom>z.min)camApply({zoom:camZoom})}
   // light (exposure)
   const e=camCaps.exposureCompensation;
-  ce.classList.toggle("hide",!(e&&e.max>e.min));
-  if(e&&e.max>e.min){
+  const hasE=!!(e&&e.max>e.min);
+  lb.classList.toggle("hide",!hasE);lb.classList.remove("on");ce.classList.add("hide");
+  lb.onclick=()=>{const o=ce.classList.toggle("hide");lb.classList.toggle("on",!o);camLayout(w)};
+  if(hasE){
     re.min=e.min;re.max=e.max;re.step=e.step||0.1;re.value=0;
     re.oninput=()=>camApply({exposureCompensation:+re.value});
   }
@@ -1413,7 +1414,7 @@ function camCtl(w){
     if(ev.touches.length===2&&pd&&z&&z.max>z.min){
       moved=true;ev.preventDefault();
       camZoom=Math.max(z.min,Math.min(z.max,pz*dist(ev.touches)/pd));
-      rz.value=camZoom;vz.textContent=camZoom.toFixed(1)+"x";camApply({zoom:camZoom});
+      zshow();camApply({zoom:camZoom});
     }
   };
   v.ontouchend=ev=>{
@@ -1472,9 +1473,9 @@ function openCam(){
   const w=document.createElement("div");w.className="camw";w.id="camw";
   w.innerHTML='<video class="camv" autoplay playsinline muted></video><img class="camp hide" alt="">'+
     '<button type="button" class="camx" aria-label="Close">'+ico("x")+'</button>'+
-    '<div class="camgrid hide"></div>'+
-    '<div class="camtools"><button type="button" class="ctb cflash hide" aria-label="Flash">'+CAMI.flash+'</button><button type="button" class="ctb cgrid" aria-label="Grid lines">'+CAMI.grid+'</button></div>'+
-    '<div class="camsl"><label class="csz hide"><span>Zoom</span><input type="range" class="rz" step="0.1"><b class="vz">1x</b></label><label class="cse hide"><span>Light</span><input type="range" class="re"></label></div>'+
+    '<div class="camgrid hide"></div><div class="camzv hide"></div>'+
+    '<div class="camtools"><button type="button" class="ctb cflash hide" aria-label="Flash">'+CAMI.flash+'</button><button type="button" class="ctb cgrid" aria-label="Grid lines">'+CAMI.grid+'</button><button type="button" class="ctb clight hide" aria-label="Light">'+CAMI.sun+'</button></div>'+
+    '<div class="camsl"><label class="cse hide"><span>Light</span><input type="range" class="re"></label></div>'+
     '<div class="cambar cam1"><span></span><button type="button" class="camshot" aria-label="Take photo"></button><button type="button" class="camflip" aria-label="Switch camera">'+ico("flip")+'</button></div>'+
     '<div class="cambar cam2 hide"><button type="button" class="camretake">Retake</button><button type="button" class="camsend">Send</button></div>';
   document.body.appendChild(w);
