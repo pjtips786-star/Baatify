@@ -1423,16 +1423,45 @@ function camCtl(w){
   v.onclick=ev=>{if(!("ontouchstart" in window))tapFocus(w,v,ev)};
   camLayout(w);
 }
+function camLuma(v,px,py){          // tap wali jagah ki roshni (0-255)
+  try{
+    const c=camLuma.c||(camLuma.c=document.createElement("canvas"));c.width=c.height=24;
+    const cx=c.getContext("2d",{willReadFrequently:true});
+    const sw=v.videoWidth*.12,sh=sw;
+    cx.drawImage(v,Math.max(0,Math.min(v.videoWidth-sw,px*v.videoWidth-sw/2)),Math.max(0,Math.min(v.videoHeight-sh,py*v.videoHeight-sh/2)),sw,sh,0,0,24,24);
+    const d=cx.getImageData(0,0,24,24).data;let t=0;
+    for(let i=0;i<d.length;i+=4)t+=.299*d[i]+.587*d[i+1]+.114*d[i+2];
+    return t/(d.length/4);
+  }catch(e){return 0}
+}
 function tapFocus(w,v,pt){
   const r=v.getBoundingClientRect();
   const x=pt.clientX,y=pt.clientY;
   const ring=document.createElement("div");ring.className="camring";
   ring.style.left=x+"px";ring.style.top=y+"px";w.appendChild(ring);setTimeout(()=>ring.remove(),900);
   const px=Math.min(1,Math.max(0,(x-r.left)/r.width)),py=Math.min(1,Math.max(0,(y-r.top)/r.height));
-  const m=camCaps.focusMode||[];
+  const m=camCaps.focusMode||[],em=camCaps.exposureMode||[],ec=camCaps.exposureCompensation;
+  const re=w.querySelector(".re");
   const c={pointsOfInterest:[{x:camF==="user"?1-px:px,y:py}]};
   if(m.indexOf("single-shot")>-1)c.focusMode="single-shot";
-  camApply(c).then(()=>{if(m.indexOf("continuous")>-1)setTimeout(()=>camApply({focusMode:"continuous"}),2500)});
+  const nativeAE=em.indexOf("single-shot")>-1;
+  if(nativeAE){c.exposureMode="single-shot";if(re&&ec){re.value=0;c.exposureCompensation=0}}
+  camApply(c).then(()=>{
+    if(m.indexOf("continuous")>-1)setTimeout(()=>camApply({focusMode:"continuous"}),2500);
+    if(nativeAE&&em.indexOf("continuous")>-1)setTimeout(()=>camApply({exposureMode:"continuous"}),2500);
+  });
+  // phone point-exposure na de to khud roshni adjust karo (light slider ke zariye)
+  if(!nativeAE&&ec&&ec.max>ec.min&&re){
+    const fixOnce=()=>{
+      const L=camLuma(v,px,py);if(L<1)return;
+      const ev=Math.max(-1.5,Math.min(1.5,Math.log2(118/L)));
+      if(Math.abs(ev)<.15)return;
+      let nv=(+re.value)+ev;
+      nv=Math.max(ec.min,Math.min(ec.max,nv));
+      re.value=nv;camApply({exposureCompensation:nv});
+    };
+    setTimeout(fixOnce,350);setTimeout(fixOnce,1100);   // doosri baar se thoda aur sahi
+  }
 }
 
 function openCam(){
