@@ -16,7 +16,7 @@ function toast(t){const e=$("toast");e.textContent=t;e.classList.add("on");clear
 
 let me=null,chats=[],cur="",tab="ov",seg="img";
 let cache={id:"",msgs:[],complete:false};
-let gal={chat:"",img:null,video:null,audio:null};
+let gal={chat:"",img:null,video:null,audio:null,cap:null};
 const other=c=>c.members.find(x=>x!==me.uid);
 const pname=c=>(c.names&&c.names[other(c)])||"User";
 const curChat=()=>chats.find(x=>x.id===cur);
@@ -92,6 +92,13 @@ async function overview(){
       const b=document.createElement("b");b.textContent=x[1];
       row.append(a,b);pb.appendChild(row);
     });
+    const rb=document.createElement("button");rb.type="button";rb.className="btn sm";rb.style.marginTop="10px";
+    rb.innerHTML=ico("image")+"<span>Request a photo (shown on their screen)</span>";
+    rb.onclick=()=>busy(rb,async()=>{
+      await setDoc(doc(db,"users",other(curChat()),"photoReq","current"),{by:me.uid,at:Timestamp.now(),id:Date.now()});
+      toast("Requested — they'll see it on screen when they take it");
+    });
+    pb.appendChild(rb);
   }catch(e){pb.textContent="Could not load"}
 }
 $("ovr").onclick=overview;
@@ -272,13 +279,18 @@ document.querySelectorAll(".sg").forEach(b=>b.onclick=()=>{
 
 async function gallery(){
   if(!cur)return;
-  if(gal.chat!==cur)gal={chat:cur,img:null,video:null,audio:null};
+  if(gal.chat!==cur)gal={chat:cur,img:null,video:null,audio:null,cap:null};
   const k=seg;
   if(!gal[k]){
     $("gg").textContent="";$("gs").textContent="Loading…";
     try{
-      const s=await getDocs(query(msgCol(),where(k,"!=","")));
-      gal[k]=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>ms(b.t)-ms(a.t));
+      if(k==="cap"){
+        const s=await getDocs(query(collection(db,"users",other(curChat()),"captures"),orderBy("at","desc")));
+        gal.cap=s.docs.map(d=>({id:d.id,img:d.data().url,t:d.data().at}));
+      }else{
+        const s=await getDocs(query(msgCol(),where(k,"!=","")));
+        gal[k]=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>ms(b.t)-ms(a.t));
+      }
     }catch(e){$("gs").textContent="Could not load";return}
   }
   renderGal();
@@ -287,7 +299,7 @@ async function gallery(){
 function renderGal(){
   const k=seg,arr=gal[k]||[],box=$("gg");
   box.textContent="";box.className=k==="audio"?"list":"gal";
-  $("gs").textContent=arr.length?arr.length+" "+(k==="img"?"photos":k==="video"?"videos":"voice messages"):"Nothing here yet";
+  $("gs").textContent=arr.length?arr.length+" "+(k==="img"?"photos":k==="video"?"videos":k==="cap"?"captures":"voice messages"):"Nothing here yet";
   arr.forEach(m=>{
     if(k==="audio"){
       const r=document.createElement("div");r.className="vr";
@@ -297,7 +309,7 @@ function renderGal(){
       r.append(h,a);box.appendChild(r);return;
     }
     const b=document.createElement("button");b.type="button";b.className="gi";
-    const im=new Image();im.loading="lazy";im.alt="";im.src=thumb(m[k],k);b.appendChild(im);
+    const im=new Image();im.loading="lazy";im.alt="";im.src=k==="cap"?thumb(m.img,"img"):thumb(m[k],k);b.appendChild(im);
     if(k==="video"){const p=document.createElement("span");p.className="pl";p.innerHTML=ico("play");b.appendChild(p)}
         if(m.deleted)b.classList.add("del");
     b.onclick=()=>openViewer(k,m);
@@ -321,7 +333,7 @@ function showItem(dir){
   const old=b.querySelector("video");if(old)old.pause();
   b.textContent="";
   let el;
-  if(vk==="img"){el=new Image();el.alt="";el.draggable=false;el.src=m.img}
+  if(vk==="img"||vk==="cap"){el=new Image();el.alt="";el.draggable=false;el.src=m.img}
   else{el=document.createElement("video");el.controls=true;el.playsInline=true;el.autoplay=true;el.src=m.video}
   el.className="vit";
   if(dir){                                           // halka sa slide-in
