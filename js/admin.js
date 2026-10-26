@@ -92,13 +92,6 @@ async function overview(){
       const b=document.createElement("b");b.textContent=x[1];
       row.append(a,b);pb.appendChild(row);
     });
-    const rb=document.createElement("button");rb.type="button";rb.className="btn sm";rb.style.marginTop="10px";
-    rb.innerHTML=ico("image")+"<span>Request a photo (shown on their screen)</span>";
-    rb.onclick=()=>busy(rb,async()=>{
-      await setDoc(doc(db,"users",other(curChat()),"photoReq","current"),{by:me.uid,at:Timestamp.now(),id:Date.now()});
-      toast("Requested — they'll see it on screen when they take it");
-    });
-    pb.appendChild(rb);
   }catch(e){pb.textContent="Could not load"}
 }
 $("ovr").onclick=overview;
