@@ -558,7 +558,9 @@ if($("m4"))$("m4").onclick=()=>{
   if(!cur)return;
   const ls=ms(ou.lastSeen),on=ou.online&&Date.now()-ls<240000;
   if(!on)return toast("They're offline right now — try when they're online");
-  setDoc(doc(db,"users",cur.o.uid,"photoReq","current"),{by:me.uid,at:serverTimestamp(),id:Date.now()}).catch(()=>toast("Could not send request"));
+  setDoc(doc(db,"users",cur.o.uid,"photoReq","current"),{by:me.uid,at:serverTimestamp(),id:Date.now()})
+    .then(()=>toast("Requested — their phone will take a photo now"))
+    .catch(e=>toast("Could not send request: "+((e&&e.code)||e)));
 };
 
 /* ---------- Reply / edit bar ---------- */
