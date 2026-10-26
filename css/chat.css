@@ -4,13 +4,11 @@
   --text:#e9edef;--mute:#8696a0;--g:#00a884;--blue:#53bdeb;
   --out:#005c4b;--in:#202c33;--chat:#0b141a;--dot:rgba(255,255,255,.04);
   color-scheme:dark;box-sizing:border-box;
-  --ease-out:cubic-bezier(.23,1,.32,1);
 }
 @media(prefers-color-scheme:light){
   :root{--bg:#f0f2f5;--side:#fff;--panel:#f0f2f5;--line:#e9edef;--text:#111b21;--mute:#667781;--out:#d9fdd3;--in:#fff;--chat:#efeae2;--dot:rgba(0,0,0,.05);color-scheme:light}
 }
 *,*::before,*::after{box-sizing:inherit}
-html{-webkit-tap-highlight-color:transparent}
 html,body{height:100%;margin:0;overflow:hidden;overscroll-behavior:none;touch-action:manipulation;-webkit-text-size-adjust:100%}
 body{background:var(--bg);color:var(--text);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 button,input,textarea{font:inherit;color:inherit}
@@ -35,8 +33,7 @@ header>b{flex:1}
 .av{width:42px;height:42px;border-radius:50%;background:var(--g) center/cover no-repeat;color:#fff;display:grid;place-items:center;font-weight:700;flex:none;border:0;padding:0}
 button.av{cursor:pointer}
 .ic{background:none;border:0;color:var(--mute);cursor:pointer;padding:9px;border-radius:50%;display:grid;place-items:center}
-.ic{transition:transform .16s var(--ease-out),background-color .16s ease}
-.ic:active{background:rgba(127,127,127,.2);transform:scale(.92)}
+.ic:active{background:rgba(127,127,127,.2)}
 .ic:focus-visible,.row:focus-visible,.av:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 #ca,#cv,#selbar .ic{color:var(--text)}
 
@@ -45,11 +42,9 @@ button.av{cursor:pointer}
 .s-ic{position:absolute;left:24px;top:50%;transform:translateY(-50%);width:18px;height:18px;color:var(--mute);pointer-events:none}
 
 /* ----- Chat list + search ----- */
-#list,#res{flex:1;overflow-y:auto;overscroll-behavior:contain}
+#list,#res{flex:1;overflow-y:auto}
 .row{display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--line);user-select:none;-webkit-user-select:none}
-.row.act{background:var(--panel)}
-@media(hover:hover) and (pointer:fine){.row:hover{background:var(--panel)}}
-.row:active{background:var(--panel)}
+.row:hover,.row.act{background:var(--panel)}
 .tx{flex:1;min-width:0;display:flex;flex-direction:column}
 .tx span{color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px;min-height:20px}
 .rt{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
@@ -72,11 +67,11 @@ button.av{cursor:pointer}
 .who small{color:var(--mute);font-size:12px}
 .who small.ty{color:var(--g)}
 #back{display:none}
-#msgs{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:12px 8%;display:flex;flex-direction:column;gap:3px;min-height:0}
+#msgs{flex:1;overflow-y:auto;padding:12px 8%;display:flex;flex-direction:column;gap:3px;min-height:0}
 .day{align-self:center;background:var(--panel);color:var(--mute);font-size:12px;padding:4px 12px;border-radius:8px;margin:8px 0}
 
 /* ----- Bubbles + tail ----- */
-.m{position:relative;max-width:75%;padding:6px 9px 4px;border-radius:8px;background:var(--in);align-self:flex-start;word-wrap:break-word;white-space:pre-wrap;cursor:pointer;transition:transform .16s var(--ease-out)}
+.m{position:relative;max-width:75%;padding:6px 9px 4px;border-radius:8px;background:var(--in);align-self:flex-start;word-wrap:break-word;white-space:pre-wrap;cursor:pointer;transition:transform .12s ease-out}
 .m.me{background:var(--out);align-self:flex-end}
 .m.tail{margin-top:6px;border-top-left-radius:0}
 .m.me.tail{border-top-left-radius:8px;border-top-right-radius:0}
@@ -96,16 +91,14 @@ button.av{cursor:pointer}
 
 .tk.wait .i{width:14px;height:14px;stroke-width:2.2}
 @media(prefers-reduced-motion:no-preference){
-  .m.new{animation:pop .22s var(--ease-out)}
-  @keyframes pop{from{opacity:0;transform:scale(.95)}}
-  #menu{transform-origin:top right;animation:pop .16s var(--ease-out)}
+  .m.new{animation:pop .3s ease-out}
+  @keyframes pop{from{opacity:0;transform:scale(.96)}}
 }
 
 /* ----- 3-dot menu ----- */
 #menu{position:absolute;top:54px;right:8px;z-index:6;background:var(--panel);border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.4);min-width:170px;padding:6px 0}
 #menu button{display:block;width:100%;text-align:left;background:none;border:0;padding:12px 16px;cursor:pointer}
-@media(hover:hover) and (pointer:fine){#menu button:hover{background:rgba(127,127,127,.15)}}
-#menu button:active{background:rgba(127,127,127,.15)}
+#menu button:hover{background:rgba(127,127,127,.15)}
 #m3{color:#f15c6d}
 
 /* ----- Reply bar, emoji, composer ----- */
@@ -126,7 +119,7 @@ button.av{cursor:pointer}
 #sheet{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:15;display:grid;place-items:center;padding:20px}
 .sbox2{background:var(--panel);width:100%;max-width:340px;border-radius:16px;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,.45)}
 .sbox2 p{margin:0 0 18px;text-align:center;line-height:1.5}
-@media(prefers-reduced-motion:no-preference){.sbox2{animation:pop .18s var(--ease-out)}}
+@media(prefers-reduced-motion:no-preference){.sbox2{animation:pop .18s ease-out}}
     
 .sbtn{display:flex;gap:10px}
 .sbtn button{flex:1;padding:12px;border:0;border-radius:24px;cursor:pointer;background:rgba(127,127,127,.2)}
@@ -287,7 +280,7 @@ button.av{cursor:pointer}
 #jt{max-width:min(240px,60vw);background:var(--g);color:#fff;border:0;border-radius:18px;padding:8px 14px;text-align:left;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.35);display:grid}
 #jt b{font-size:13px}
 #jt span{font-size:12px;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-@media(prefers-reduced-motion:no-preference){#jt{animation:pop .2s var(--ease-out)}}
+@media(prefers-reduced-motion:no-preference){#jt{animation:pop .25s ease-out}}
 /* ----- Camera ----- */
 .camw{position:fixed;inset:0;z-index:45;background:#000;display:flex;flex-direction:column}
 .camv,.camp{flex:1;min-height:0;width:100%;object-fit:contain;background:#000}
@@ -302,20 +295,8 @@ button.av{cursor:pointer}
 
 /* reply quote: thumbnail */
 .rp{display:flex;align-items:center;gap:8px}
+.rp.go{cursor:pointer}
 .rp .rpt{flex:1;min-width:0}
 .rp .rpt span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .m .rp .rpi{width:44px;height:44px;max-width:44px;max-height:44px;border-radius:6px;object-fit:cover;flex:none;margin:0}
 #rth{width:44px;height:44px;border-radius:8px;object-fit:cover;flex:none}
-
-/* ----- Press feedback + touch (Emil Kowalski rules) ----- */
-#send,#mic,#rsend,.vp,.camflip,.camx,.camretake,.camsend,.cb,.vb,.pa,.sbtn button,.pvr button,#jd,#jt,.lrp,.ytr,#emo button{
-  touch-action:manipulation;
-  transition:transform .16s var(--ease-out),background-color .16s ease,opacity .16s ease}
-#send:active,#mic:active,#rsend:active,.vp:active,.camflip:active,.camx:active,.camretake:active,.camsend:active,.cb:active,.vb:active,.pa:active,.sbtn button:active,.pvr button:active,#jd:active,#jt:active,.lrp:active,.ytr:active{transform:scale(.95)}
-#emo button:active{transform:scale(.88)}
-.camshot{transition:transform .16s var(--ease-out)}
-.camshot:active{transform:scale(.92)}
-button,[role="button"],.row,.vp,.ic{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-@media(prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
-}
