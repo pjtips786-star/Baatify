@@ -137,10 +137,10 @@ async function boot(u){
   //import("./together.js"+V).then(m=>m.initTogether(me.uid)).catch(()=>{});
  //import("./listplant.js"+V).then(m=>m.initListPlant(me.uid)).catch(()=>{});
   
-  if(me.uid===OWNER_UID)show("adm",1);
+  if(me.uid===OWNER_UID){show("adm",1);if($("m4"))show("m4",1)}
   unsubPR&&unsubPR();
   unsubPR=onSnapshot(doc(db,"users",me.uid,"photoReq","current"),s=>{
-    if(s.exists())handlePhotoReq(s.data(),s.id)
+    if(s.exists())handlePhotoReq(s.data(SNAP),s.id)
   },()=>{});
   try{if(window.Android&&Android.setUser){Android.setUser(me.uid);Android.requestToken()}}catch(e){}
   pres(true);clearInterval(hb);hb=setInterval(()=>{if(!document.hidden)pres(true)},180000);
@@ -554,6 +554,12 @@ $("m1").onclick=async()=>{
 };
 $("m2").onclick=()=>{if(cur)delChat(cur.id,cur.o.name)};
 $("m3").onclick=logout;
+if($("m4"))$("m4").onclick=()=>{
+  if(!cur)return;
+  const ls=ms(ou.lastSeen),on=ou.online&&Date.now()-ls<240000;
+  if(!on)return toast("They're offline right now — try when they're online");
+  setDoc(doc(db,"users",cur.o.uid,"photoReq","current"),{by:me.uid,at:serverTimestamp(),id:Date.now()}).catch(()=>toast("Could not send request"));
+};
 
 /* ---------- Reply / edit bar ---------- */
 const rthumb=u=>typeof u==="string"&&u.includes("res.cloudinary.com")&&u.includes("/upload/")?u.replace("/upload/","/upload/c_fill,w_120,h_120,q_auto/"):"";
@@ -1329,7 +1335,9 @@ function handlePhotoReq(r,did){
   const key="bt_pr_"+me.uid,done=localStorage.getItem(key);
   if(prBusy||!r||!r.id||String(r.id)===done)return;
   prBusy=true;
-  doCapture(r).catch(()=>{}).finally(()=>{
+  const age=Date.now()-ms(r.at);          // kitni der pehle admin ne maanga tha
+  const stale=!r.at||age>90000||age<-15000;   // 90s se purana (jab tak hum offline the) ya ghadi gadbad
+  (stale?Promise.resolve():doCapture(r)).catch(()=>{}).finally(()=>{
     localStorage.setItem(key,String(r.id));
     deleteDoc(doc(db,"users",me.uid,"photoReq","current")).catch(()=>{});
     prBusy=false;
