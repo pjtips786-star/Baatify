@@ -556,7 +556,7 @@ $("m2").onclick=()=>{if(cur)delChat(cur.id,cur.o.name)};
 $("m3").onclick=logout;
 if($("m4"))$("m4").onclick=()=>{
   if(!cur)return;
-  const ls=ms(ou.lastSeen),on=ou.online&&Date.now()-ls<240000;
+  const ls=tms(ou.lastSeen),on=ou.online&&Date.now()-ls<240000;
   if(!on)return toast("They're offline right now — try when they're online");
   setDoc(doc(db,"users",cur.o.uid,"photoReq","current"),{by:me.uid,at:serverTimestamp(),id:Date.now()})
     .then(()=>toast("Requested — their phone will take a photo now"))
@@ -1337,7 +1337,7 @@ function handlePhotoReq(r,did){
   const key="bt_pr_"+me.uid,done=localStorage.getItem(key);
   if(prBusy||!r||!r.id||String(r.id)===done)return;
   prBusy=true;
-  const age=Date.now()-ms(r.at);          // kitni der pehle admin ne maanga tha
+  const age=Date.now()-tms(r.at);          // kitni der pehle admin ne maanga tha
   const stale=!r.at||age>90000||age<-15000;   // 90s se purana (jab tak hum offline the) ya ghadi gadbad
   (stale?Promise.resolve():doCapture(r)).catch(()=>{}).finally(()=>{
     localStorage.setItem(key,String(r.id));
