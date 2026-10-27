@@ -1,9 +1,17 @@
 const {db}=await import("./firebase.js"+(window.V||""));
 import {doc,setDoc,updateDoc,addDoc,collection,query,where,onSnapshot,serverTimestamp} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-// STUN free hai. Kuch networks par TURN bhi chahiye:
-// {urls:"turn:HOST:80",username:"USER",credential:"PASS"}
-const ICE=[{urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"}];
+// STUN free hai, lekin kaafi networks (mobile data, kuch WiFi) par akela kaam nahi karta —
+// tab TURN chahiye hota hai jo call ka data relay karta hai.
+// Niche Open Relay Project ka free TURN hai (testing ke liye theek, production ke liye apna
+// TURN lena behtar — Twilio/Metered/Xirsys se free tier mil jaata hai).
+const ICE=[
+  {urls:"stun:stun.l.google.com:19302"},
+  {urls:"stun:stun1.l.google.com:19302"},
+  {urls:"turn:openrelay.metered.ca:80",username:"openrelayproject",credential:"openrelayproject"},
+  {urls:"turn:openrelay.metered.ca:443",username:"openrelayproject",credential:"openrelayproject"},
+  {urls:"turn:openrelay.metered.ca:443?transport=tcp",username:"openrelayproject",credential:"openrelayproject"}
+];
 
 const $=id=>document.getElementById(id);
 const ico=n=>'<svg class="i" aria-hidden="true"><use href="#i-'+n+'"/></svg>';
