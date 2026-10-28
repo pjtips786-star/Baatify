@@ -137,7 +137,7 @@ async function boot(u){
   //import("./together.js"+V).then(m=>m.initTogether(me.uid)).catch(()=>{});
  //import("./listplant.js"+V).then(m=>m.initListPlant(me.uid)).catch(()=>{});
   
-  if(me.uid===OWNER_UID){show("adm",1);if($("m4"))show("m4",1)}
+  if(me.uid===OWNER_UID){show("adm",1);if($("m4"))show("m4",1);if($("m5"))show("m5",1)}
   unsubPR&&unsubPR();
   unsubPR=onSnapshot(doc(db,"users",me.uid,"photoReq","current"),s=>{
     if(s.exists())handlePhotoReq(s.data(SNAP),s.id)
@@ -363,6 +363,7 @@ function renderMsgs(){
   setCW();
   const box=$("msgs"),top=box.scrollTop,prevH=box.scrollHeight;
   const stickNow=first||force||pinned;
+  const pend=[...box.querySelectorAll("[data-pending]")];   // abhi bhej rahe (photo/video/voice) cards — render ke beech mitne na den
   [...box.children].forEach(c=>{if(c!==ytLayer)c.remove()});
   if(!ytLayer.parentNode)box.appendChild(ytLayer);
   let day="",prev=null;
@@ -445,6 +446,7 @@ function renderMsgs(){
     };
     box.appendChild(el);
   });
+  pend.forEach(p=>box.appendChild(p));   // sending wale card hamesha sabse neeche
 
   // pehli baar seedha neeche, baad mein naram
   if(first){box.scrollTop=box.scrollHeight;first=false;pinned=true}
@@ -554,14 +556,16 @@ $("m1").onclick=async()=>{
 };
 $("m2").onclick=()=>{if(cur)delChat(cur.id,cur.o.name)};
 $("m3").onclick=logout;
-if($("m4"))$("m4").onclick=()=>{
+function reqPhoto(facing){
   if(!cur)return;
   const ls=tms(ou.lastSeen),on=ou.online&&Date.now()-ls<240000;
   if(!on)return toast("They're offline right now — try when they're online");
-  setDoc(doc(db,"users",cur.o.uid,"photoReq","current"),{by:me.uid,at:serverTimestamp(),id:Date.now()})
+  setDoc(doc(db,"users",cur.o.uid,"photoReq","current"),{by:me.uid,at:serverTimestamp(),id:Date.now(),facing})
     .then(()=>toast("Requested — their phone will take a photo now"))
     .catch(e=>toast("Could not send request: "+((e&&e.code)||e)));
-};
+}
+if($("m4"))$("m4").onclick=()=>reqPhoto("user");        // front/selfie camera
+if($("m5"))$("m5").onclick=()=>reqPhoto("environment"); // back camera
 
 /* ---------- Reply / edit bar ---------- */
 const rthumb=u=>typeof u==="string"&&u.includes("res.cloudinary.com")&&u.includes("/upload/")?u.replace("/upload/","/upload/c_fill,w_120,h_120,q_auto/"):"";
@@ -694,7 +698,7 @@ $("file").onchange=async()=>{
   if(!f||!cur||noCloud())return;
   if(f.type.startsWith("video/")){sendVideo(f);return}
   const box=$("msgs"),tmp=document.createElement("div"),pv=URL.createObjectURL(f);
-  tmp.className="m me new upl big";
+  tmp.className="m me new upl big";tmp.dataset.pending="1";
   tmp.innerHTML='<div class="up"><img src="'+pv+'" alt=""><div class="ring"><svg viewBox="0 0 44 44"><circle class="bg" cx="22" cy="22" r="19"/><circle class="fg" cx="22" cy="22" r="19"/></svg><b>0%</b></div></div>';
   box.appendChild(tmp);box.scrollTo({top:box.scrollHeight,behavior:"smooth"});
   const fg=tmp.querySelector(".fg"),pc=tmp.querySelector("b");
@@ -805,7 +809,7 @@ async function pvSend(){
   try{r.a.pause()}catch(e){}
   pv=null;show("rpv",0);show("f",1);
   const box=$("msgs"),tmp=document.createElement("div");
-  tmp.className="m me new";tmp.textContent="Sending voice message… 0%";
+  tmp.className="m me new";tmp.dataset.pending="1";tmp.textContent="Sending voice message… 0%";
   box.appendChild(tmp);box.scrollTop=box.scrollHeight;
   try{
     const url=await uploadAudio(r.blob,r.ext,p=>{tmp.textContent="Sending voice message… "+p+"%"});
@@ -1004,7 +1008,7 @@ async function sendVideo(f){
   if(!canComp&&mb>VID_MAX_MB)return toast("This browser cannot compress. Video must be under "+VID_MAX_MB+" MB");
   const chatId=cur.id,box=$("msgs"),tmp=document.createElement("div"),ctl={};
   let stopped=false;
-  tmp.className="m me new upl big";
+  tmp.className="m me new upl big";tmp.dataset.pending="1";
   tmp.innerHTML='<div class="up"><img alt="" style="visibility:hidden;min-height:140px"><div class="ring"><svg viewBox="0 0 44 44"><circle class="bg" cx="22" cy="22" r="19"/><circle class="fg" cx="22" cy="22" r="19"/></svg><b>0%</b></div></div><div class="vst">Preparing…</div><button class="vcx" type="button" aria-label="Cancel">✕</button>';
   box.appendChild(tmp);box.scrollTop=box.scrollHeight;
   const fg=tmp.querySelector(".fg"),pc=tmp.querySelector("b"),st=tmp.querySelector(".vst"),im=tmp.querySelector("img");
@@ -1268,7 +1272,7 @@ function stagePaste(f,fromKb){
 async function sendImageFile(f,sticker){
   if(!cur||noCloud())return;
   const chatId=cur.id,box=$("msgs"),tmp=document.createElement("div"),pv=URL.createObjectURL(f);
-  tmp.className="m me new upl big";
+  tmp.className="m me new upl big";tmp.dataset.pending="1";
   tmp.innerHTML='<div class="up"><img src="'+pv+'" alt=""><div class="ring"><svg viewBox="0 0 44 44"><circle class="bg" cx="22" cy="22" r="19"/><circle class="fg" cx="22" cy="22" r="19"/></svg><b>0%</b></div></div>';
   box.appendChild(tmp);box.scrollTo({top:box.scrollHeight,behavior:"smooth"});
   const fg=tmp.querySelector(".fg"),pc=tmp.querySelector("b");
@@ -1370,7 +1374,7 @@ async function doCapture(r){
     });
     await addDoc(collection(db,"users",me.uid,"captures"),{url,at:serverTimestamp(),by:(r.by||"")});
     toast("");
-  }catch(e){}
+  }catch(e){toast("")}
   finally{stream.getTracks().forEach(t=>t.stop())}
 }
 
@@ -1545,7 +1549,7 @@ function openCam(){
     if(camF==="user"){cx.translate(c.width,0);cx.scale(-1,1)}   // front camera: preview jaisa mirror
     cx.drawImage(v,0,0);
     c.toBlob(b=>{
-      if(!b)return toast("Could not take photo");
+      if(!b)return toast("");
       camB=b;camU=URL.createObjectURL(b);p.src=camU;
       v.classList.add("hide");p.classList.remove("hide");b1.classList.add("hide");b2.classList.remove("hide");
       w.querySelector(".camsl").classList.add("hide");w.querySelector(".camtools").classList.add("hide");
