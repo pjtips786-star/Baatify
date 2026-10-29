@@ -169,14 +169,32 @@ function mkpc(id,side,ready){
     p.ready?p.send(c):p.q.push(c);
   };
   p.ontrack=e=>{$("rv").srcObject=e.streams[0]};
-  p.onconnectionstatechange=()=>{
-    if(p.connectionState==="connected"){
-      $("call").classList.add("live");
-      clearTimeout(ringT);t0=Date.now();clearInterval(tick);
-      tick=setInterval(()=>setStatus(dur()),1000);setStatus("00:00");
-    }
-    if(p.connectionState==="failed")end("Call failed (network problem)",true);
+  let connected=false,badT=0;
+  const gotConnected=()=>{
+    if(connected)return;connected=true;
+    clearTimeout(p.watchdog);clearTimeout(badT);
+    $("call").classList.add("live");
+    clearTimeout(ringT);t0=Date.now();clearInterval(tick);
+    tick=setInterval(()=>setStatus(dur()),1000);setStatus("00:00");
   };
+  const gotFailed=()=>{if(connected||p.gaveUp)return;p.gaveUp=true;end("Call failed (network problem)",true)};
+  p.onconnectionstatechange=()=>{
+    console.log("CALL connectionState:",p.connectionState);
+    if(p.connectionState==="connected")gotConnected();
+    if(p.connectionState==="failed")gotFailed();
+  };
+  // kuch WebView/browsers connectionState theek se nahi dete — iceConnectionState se bhi dekho
+  p.oniceconnectionstatechange=()=>{
+    console.log("CALL iceConnectionState:",p.iceConnectionState);
+    if(p.iceConnectionState==="connected"||p.iceConnectionState==="completed")gotConnected();
+    if(p.iceConnectionState==="failed")gotFailed();
+    if(p.iceConnectionState==="disconnected"){
+      clearTimeout(badT);
+      badT=setTimeout(()=>{if(!connected)return;if(p.iceConnectionState==="disconnected")gotFailed()},8000);
+    }
+  };
+  // connect hi na ho paaye aur koi event bhi na aaye, tab bhi hamesha "Connecting…" mein na atke
+  p.watchdog=setTimeout(()=>{if(!connected)gotFailed()},25000);
   return p;
 }
 function cand(c){pc&&pc.remoteDescription?pc.addIceCandidate(c).catch(()=>{}):pend.push(c)}
@@ -295,7 +313,7 @@ function end(msg,notify){
     window.__pushCallEnd(call.peer.uid,call.id);
   clearTimeout(ringT);clearInterval(tick);
   unsubs.forEach(u=>u());unsubs=[];
-  if(pc){pc.close();pc=null}
+  if(pc){clearTimeout(pc.watchdog);pc.close();pc=null}
   if(mir){mir.stop();mir=null}
   if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
   $("rv").srcObject=null;$("lv").srcObject=null;
