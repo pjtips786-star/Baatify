@@ -164,8 +164,10 @@ function mkpc(id,side,ready){
   p.q=[];p.ready=ready;
   p.send=c=>addDoc(collection(db,"calls",id,side),c).catch(()=>{});
   p.onicecandidate=e=>{
-    if(!e.candidate)return;
+    if(!e.candidate){console.log("CALL ICE gathering done, types seen:",p.types||[]);return}
     const c=e.candidate.toJSON();
+    const m=/ typ (\w+)/.exec(c.candidate||"");
+    if(m){p.types=p.types||[];p.types.push(m[1]);console.log("CALL ICE candidate type:",m[1])}
     p.ready?p.send(c):p.q.push(c);
   };
   p.ontrack=e=>{$("rv").srcObject=e.streams[0]};
