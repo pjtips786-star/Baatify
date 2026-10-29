@@ -3,14 +3,14 @@ import {doc,setDoc,updateDoc,addDoc,collection,query,where,onSnapshot,serverTime
 
 // STUN free hai, lekin kaafi networks (mobile data, kuch WiFi) par akela kaam nahi karta —
 // tab TURN chahiye hota hai jo call ka data relay karta hai.
-// Niche Open Relay Project ka free TURN hai (testing ke liye theek, production ke liye apna
-// TURN lena behtar — Twilio/Metered/Xirsys se free tier mil jaata hai).
+// Apna Metered.ca TURN credential (free plan, 5 GB/month). Expire/limit khatam hone par
+// dashboard.metered.ca se naya credential banakar yahan badal dena.
 const ICE=[
-  {urls:"stun:stun.l.google.com:19302"},
-  {urls:"stun:stun1.l.google.com:19302"},
-  {urls:"turn:openrelay.metered.ca:80",username:"openrelayproject",credential:"openrelayproject"},
-  {urls:"turn:openrelay.metered.ca:443",username:"openrelayproject",credential:"openrelayproject"},
-  {urls:"turn:openrelay.metered.ca:443?transport=tcp",username:"openrelayproject",credential:"openrelayproject"}
+  {urls:"stun:stun.relay.metered.ca:80"},
+  {urls:"turn:global.relay.metered.ca:80",username:"7a994dbf22dbcc585402d884",credential:"gCXj1Or8JMUSwm2k"},
+  {urls:"turn:global.relay.metered.ca:80?transport=tcp",username:"7a994dbf22dbcc585402d884",credential:"gCXj1Or8JMUSwm2k"},
+  {urls:"turn:global.relay.metered.ca:443",username:"7a994dbf22dbcc585402d884",credential:"gCXj1Or8JMUSwm2k"},
+  {urls:"turns:global.relay.metered.ca:443?transport=tcp",username:"7a994dbf22dbcc585402d884",credential:"gCXj1Or8JMUSwm2k"}
 ];
 
 const $=id=>document.getElementById(id);
