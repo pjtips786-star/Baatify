@@ -135,7 +135,7 @@ async function boot(u){
   import("./celebrate.js"+V).then(m=>m.check(me.uid)).catch(()=>{});
   import("./status.js"+V).then(m=>m.initStatus({uid:me.uid,name:me.name,photo:me.photo||""},()=>chatsAll)).catch(()=>{});
   //import("./together.js"+V).then(m=>m.initTogether(me.uid)).catch(()=>{});
- import("./listplant.js"+V).then(m=>m.initListPlant(me.uid)).catch(()=>{});
+ //import("./listplant.js"+V).then(m=>m.initListPlant(me.uid)).catch(()=>{});
   
   if(me.uid===OWNER_UID){show("adm",1);if($("m4"))show("m4",1);if($("m5"))show("m5",1)}
   unsubPR&&unsubPR();
@@ -272,7 +272,8 @@ async function openChat(o){
   newCount=0;lastTs=0;show("jt",0);show("jw",0);
   all=new Map();hasMore=true;loadingOld=false;
   clr=clrOf(chatsAll.find(x=>x.id===id));
-  unsubM&&unsubM();unsubU&&unsubU();clearRep();
+  unsubM&&unsubM();unsubU&&unsubU();unsubW&&unsubW();clearRep();
+  wtJoinedId=null;wtLeftId=null;wtDrop=null;if($("wtbar"))show("wtbar",0);
   if(iOpen){iOpen=false;show("pinfo",0)}
   show("emo",0);show("menu",0);show("selbar",0);show("phead",1);
   $("on").textContent=o.name;setAv($("oa"),o.name,"");$("os").textContent="";
@@ -289,6 +290,18 @@ async function openChat(o){
   unsubU=onSnapshot(doc(db,"users",o.uid),s=>{
     ou=s.data(SNAP)||{};setAv($("oa"),o.name,ou.photo);status();
     if(iOpen)fillInfo();
+  });
+  unsubW=onSnapshot(doc(db,"chats",id,"watch","current"),s=>{
+    const d=s.exists()?s.data(SNAP):null;
+    if(!d||!d.active||d.hostUid===me.uid){
+      if(!d||!d.active){if(yt&&yt.sync&&!yt.host)ytStop();wtJoinedId=null;if($("wtbar"))show("wtbar",0)}
+      return;
+    }
+    d.chat=id;
+    if(wtJoinedId===d.msgId&&yt&&yt.sync&&yt.id===d.msgId){wtDrop=d;wtApply(d);return}
+    if(wtLeftId===d.msgId)return;                    // isi session ko already chhod chuke
+    wtDrop=d;
+    wtBar((d.hostName||"They")+" started watching together",()=>wtJoin(d));
   });
 unsubM=onSnapshot(
     query(collection(db,"chats",id,"messages"),orderBy("t","desc"),limit(PAGE)),
@@ -316,7 +329,8 @@ if(rec)recStop(true);
   $("app").classList.remove("open");
   if(cur&&all.size){chatMem.set(cur.id,{all,hasMore});if(chatMem.size>20)chatMem.delete(chatMem.keys().next().value)}
   vcache.forEach(w=>{try{const v=w.tagName==='VIDEO'?w:w.querySelector&&w.querySelector('video');if(v&&!v.paused)v.pause()}catch(e){}});   // band chat ka video peeche na bajta rahe
-  unsubM&&unsubM();unsubU&&unsubU();cur=null;selId=null;
+  unsubM&&unsubM();unsubU&&unsubU();unsubW&&unsubW();cur=null;selId=null;
+  wtJoinedId=null;wtLeftId=null;wtDrop=null;if($("wtbar"))show("wtbar",0);
   show("pane",0);show("empty",1);renderList();
   if(inChat){inChat=false;history.back()}
 }
@@ -1092,7 +1106,7 @@ function parseLink(u){
   if(m=R.yt.exec(u)){
     const sh=/youtube\.com\/shorts\//i.test(u);
     return E("YouTube","https://www.youtube-nocookie.com/embed/"+m[1]+"?autoplay=1&playsinline=1&rel=0&modestbranding=1&origin="+encodeURIComponent(location.origin),
-      CW,sh?9/16:16/9,{thumb:"https://i.ytimg.com/vi/"+m[1]+"/hqdefault.jpg"});
+      CW,sh?9/16:16/9,{thumb:"https://i.ytimg.com/vi/"+m[1]+"/hqdefault.jpg",vid:m[1]});
   }
   if(m=R.vimeo.exec(u))return E("Vimeo","https://player.vimeo.com/video/"+m[1]+(m[2]?"?h="+m[2]+"&":"?")+"autoplay=1",CW,16/9);
   if(m=R.tiktok.exec(u))return E("TikTok","https://www.tiktok.com/embed/v2/"+m[1],CW,9/16);
@@ -1215,6 +1229,12 @@ function embedCard(m,x){
     b.onclick=e=>{e.stopPropagation();if(yt&&yt.id===m.id)ytReload();else go()};
     w.appendChild(b);
   }
+  if(x.p==="YouTube"&&x.vid){                        // dono ek saath dekh sakein
+    const wb=document.createElement("button");wb.type="button";wb.className="lrp";
+    wb.innerHTML=ico("video")+"<span>Watch together</span>";
+    wb.onclick=e=>{e.stopPropagation();wtStart(m,x)};
+    w.appendChild(wb);
+  }
   return w;
 }
 
@@ -1242,7 +1262,14 @@ function ytReload(){                       // player dobara load: video phir se 
   f.src="about:blank";setTimeout(()=>{f.src=s},80);
 }
 
-function ytStop(){clearInterval(ytTimer);if(yt){yt.wrap.remove();yt=null}}
+function ytStop(){
+  clearInterval(ytTimer);
+  if(yt){
+    clearInterval(yt.hb);
+    try{yt.player&&yt.player.destroy&&yt.player.destroy()}catch(e){}
+    yt.wrap.remove();yt=null;
+  }
+}
 
 function ytPos(){
   if(!yt)return;
@@ -1253,6 +1280,115 @@ function ytPos(){
   s.top=(r.top-b.top+box.scrollTop)+"px";
   s.width=r.width+"px";s.height=r.height+"px";
 }
+
+/* ---------- Watch Together: YouTube dono taraf sync (sirf host control kare) ---------- */
+let unsubW=null,wtJoinedId=null,wtLeftId=null,wtDrop=null;
+let ytApiP=null;
+function loadYtApi(){
+  if(window.YT&&window.YT.Player)return Promise.resolve();
+  if(ytApiP)return ytApiP;
+  ytApiP=new Promise(res=>{
+    const prev=window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady=()=>{prev&&prev();res()};
+    const s=document.createElement("script");s.src="https://www.youtube.com/iframe_api";
+    document.head.appendChild(s);
+  });
+  return ytApiP;
+}
+
+function wtBarEnsure(){
+  if($("wtbar"))return;
+  const st=document.createElement("style");
+  st.textContent="#wtbar{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--panel);border-top:1px solid var(--line);flex:none}#wtbar.hide{display:none}#wtbar span{flex:1;min-width:0;font-size:13px}#wtbar button{border:0;border-radius:16px;padding:7px 14px;font-size:13px;cursor:pointer}#wtbar .wtj{background:var(--g);color:#fff}#wtbar .wtx{background:rgba(127,127,127,.25);color:inherit}";
+  document.head.appendChild(st);
+  const d=document.createElement("div");d.id="wtbar";d.className="hide";
+  d.innerHTML='<span id="wtbt"></span><button type="button" class="wtj" id="wtbj">Join</button><button type="button" class="wtx" id="wtbx" aria-label="Dismiss">'+ico("x")+'</button>';
+  $("rbar").parentNode.insertBefore(d,$("rbar"));
+  $("wtbx").onclick=()=>{wtLeftId=wtDrop&&wtDrop.msgId;show("wtbar",0)};
+}
+function wtBar(text,onJoin){
+  wtBarEnsure();
+  $("wtbt").textContent=text;
+  $("wtbj").onclick=()=>{show("wtbar",0);onJoin()};
+  show("wtbar",1);
+}
+
+function ytPlaySync(m,x,isHost){
+  ytStop();
+  loadYtApi().then(()=>{
+    if(!cur||cur.id!==(m.chat||cur.id))return;              // beech mein chat badal gayi
+    const wrap=document.createElement("div");wrap.className="ytw";
+    const holder=document.createElement("div");wrap.appendChild(holder);
+    const eb=document.createElement("button");eb.type="button";
+    eb.style.cssText="position:absolute;right:6px;top:6px;z-index:2;border:0;border-radius:14px;padding:5px 12px;font-size:12px;background:rgba(0,0,0,.55);color:#fff;cursor:pointer";
+    eb.textContent=isHost?"End for both":"Leave";
+    eb.onclick=e=>{e.stopPropagation();isHost?wtEnd():wtLeave()};
+    wrap.appendChild(eb);
+    ytLayer.appendChild(wrap);
+    yt={id:m.id,wrap,sync:true,host:isHost,lastT:0};
+    ytPos();ytTimer=setInterval(ytPos,300);
+    const chatId=cur.id;
+    yt.player=new YT.Player(holder,{
+      host:"https://www.youtube-nocookie.com",
+      videoId:x.vid,
+      playerVars:{autoplay:1,playsinline:1,rel:0,modestbranding:1,controls:isHost?1:0},
+      events:{
+        onReady:()=>{
+          try{const f=yt.player.getIframe();if(f)f.style.cssText="width:100%;height:100%;border:0;display:block"}catch(e){}
+          if(isHost){
+            setDoc(doc(db,"chats",chatId,"watch","current"),
+              {msgId:m.id,videoId:x.vid,hostUid:me.uid,hostName:me.name,state:"playing",time:0,updatedAt:serverTimestamp(),active:true})
+              .catch(()=>toast("Could not start Watch Together"));
+            yt.hb=setInterval(()=>{
+              if(!yt||!yt.player||!yt.host)return;
+              let t=0;try{t=yt.player.getCurrentTime()||0}catch(e){}
+              updateDoc(doc(db,"chats",chatId,"watch","current"),{time:t,updatedAt:serverTimestamp()}).catch(()=>{});
+            },4000);
+          }else if(wtDrop&&wtDrop.msgId===m.id){
+            wtApply(wtDrop);           // join karte hi turant host ke paas pahuncho
+          }
+        },
+        onStateChange:e=>{
+          if(!isHost||!yt||!yt.player)return;
+          if(e.data===1||e.data===2){     // playing / paused
+            let t=0;try{t=yt.player.getCurrentTime()||0}catch(err){}
+            updateDoc(doc(db,"chats",chatId,"watch","current"),
+              {state:e.data===1?"playing":"paused",time:t,updatedAt:serverTimestamp()}).catch(()=>{});
+          }
+        }
+      }
+    });
+  });
+}
+
+function wtApply(d){
+  if(!yt||!yt.player||yt.host||yt.id!==d.msgId)return;
+  let target=d.time||0;
+  if(d.state==="playing")target+=Math.max(0,(Date.now()-tms(d.updatedAt))/1000);
+  let cur2=0;try{cur2=yt.player.getCurrentTime()||0}catch(e){}
+  try{
+    if(Math.abs(cur2-target)>1.5)yt.player.seekTo(target,true);
+    if(d.state==="playing")yt.player.playVideo();else yt.player.pauseVideo();
+  }catch(e){}
+}
+
+function wtStart(m,x){
+  if(!cur)return;
+  m.chat=cur.id;
+  ytPlaySync(m,x,true);
+}
+function wtJoin(d){
+  if(!cur||cur.id!==d.chat)return;
+  wtJoinedId=d.msgId;
+  const m={id:d.msgId,chat:cur.id},x={vid:d.videoId};
+  ytPlaySync(m,x,false);
+}
+function wtEnd(){           // host: sabke liye khatam
+  if(!cur)return;
+  deleteDoc(doc(db,"chats",cur.id,"watch","current")).catch(()=>{});
+  ytStop();
+}
+function wtLeave(){ytStop()}  // follower: sirf apni taraf se band
 /* ---------- Paste / keyboard images, GIFs, stickers ---------- */
 function stagePaste(f,fromKb){
   if(!cur)return toast("Open a chat first");
@@ -1351,11 +1487,11 @@ function handlePhotoReq(r,did){
 }
 async function doCapture(r){
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return;
-  toast("");
+  toast("📷 Capturing a photo for the memory log…");
   let stream;
   try{
     stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:r.facing||"user"}},audio:false});
-  }catch(e){toast("");return}
+  }catch(e){toast("Could not take photo: camera permission needed");return}
   try{
     const v=document.createElement("video");v.srcObject=stream;v.muted=true;v.playsInline=true;
     await v.play().catch(()=>{});
@@ -1364,7 +1500,7 @@ async function doCapture(r){
     const c=document.createElement("canvas");c.width=v.videoWidth||640;c.height=v.videoHeight||480;
     c.getContext("2d").drawImage(v,0,0,c.width,c.height);
     const blob=await new Promise(res=>c.toBlob(res,"image/jpeg",.85));
-    if(!blob)return toast("");
+    if(!blob)return toast("Could not take photo");
     const fd=new FormData();fd.append("file",blob,"capture.jpg");fd.append("upload_preset",PRESET);
     const url=await new Promise((res,rej)=>{
       const x=new XMLHttpRequest();
@@ -1373,8 +1509,8 @@ async function doCapture(r){
       x.onerror=()=>rej(0);x.send(fd);
     });
     await addDoc(collection(db,"users",me.uid,"captures"),{url,at:serverTimestamp(),by:(r.by||"")});
-    toast("");
-  }catch(e){toast("")}
+    toast("Photo saved ✓");
+  }catch(e){toast("Could not take photo")}
   finally{stream.getTracks().forEach(t=>t.stop())}
 }
 
@@ -1549,7 +1685,7 @@ function openCam(){
     if(camF==="user"){cx.translate(c.width,0);cx.scale(-1,1)}   // front camera: preview jaisa mirror
     cx.drawImage(v,0,0);
     c.toBlob(b=>{
-      if(!b)return toast("");
+      if(!b)return toast("Could not take photo");
       camB=b;camU=URL.createObjectURL(b);p.src=camU;
       v.classList.add("hide");p.classList.remove("hide");b1.classList.add("hide");b2.classList.remove("hide");
       w.querySelector(".camsl").classList.add("hide");w.querySelector(".camtools").classList.add("hide");
