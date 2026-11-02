@@ -274,6 +274,7 @@ async function openChat(o){
   clr=clrOf(chatsAll.find(x=>x.id===id));
   unsubM&&unsubM();unsubU&&unsubU();unsubW&&unsubW();clearRep();
   wtJoinedId=null;wtLeftId=null;wtDrop=null;if($("wtbar"))show("wtbar",0);
+  try{const sv=localStorage.getItem("wtDismiss_"+id);wtLeftId=sv?+sv:null}catch(e){}   // dismiss yaad rahe, reload/reopen ke baad bhi
   if(iOpen){iOpen=false;show("pinfo",0)}
   show("emo",0);show("menu",0);show("selbar",0);show("phead",1);
   $("on").textContent=o.name;setAv($("oa"),o.name,"");$("os").textContent="";
@@ -1310,7 +1311,10 @@ function wtBarEnsure(){
   const d=document.createElement("div");d.id="wtbar";d.className="hide";
   d.innerHTML='<span id="wtbt"></span><button type="button" class="wtj" id="wtbj">Join</button><button type="button" class="wtx" id="wtbx" aria-label="Dismiss">'+ico("x")+'</button>';
   $("rbar").parentNode.insertBefore(d,$("rbar"));
-  $("wtbx").onclick=()=>{wtLeftId=wtDrop&&wtDrop.sid;show("wtbar",0)};  // sirf isi session (sid) ko dismiss karo, naya start future mein phir dikhega
+  $("wtbx").onclick=()=>{
+    wtLeftId=wtDrop&&wtDrop.sid;show("wtbar",0);
+    try{if(cur)localStorage.setItem("wtDismiss_"+cur.id,String(wtLeftId||""))}catch(e){}  // sirf isi session (sid) ko dismiss karo, naya start future mein phir dikhega — reload ke baad bhi yaad rahega
+  };
 }
 function wtBar(text,onJoin){
   wtBarEnsure();
