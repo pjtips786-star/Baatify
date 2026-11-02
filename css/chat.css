@@ -302,6 +302,7 @@ button.av{cursor:pointer}
 .ytctl .yttl::before{content:"";position:absolute;inset:-8px 0}
 .ytctl .yttlf{height:100%;width:0;background:#fff;border-radius:2px}
 .ytctl .yttm{font-size:11px;color:#fff;min-width:30px;text-align:center;font-variant-numeric:tabular-nums}
+.ytctl .ytst{font-size:10.5px;color:rgba(255,255,255,.85);white-space:nowrap;flex:none}
 .ytctl .ytendbtn{border:0;border-radius:14px;padding:5px 10px;font-size:11.5px;background:rgba(255,255,255,.18);color:#fff;cursor:pointer;flex:none}
 .ytw:fullscreen .ytctl,.ytw:-webkit-full-screen .ytctl{padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
 .ytw:fullscreen,.ytw:-webkit-full-screen{background:#000;display:flex;flex-direction:column}
