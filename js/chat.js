@@ -135,7 +135,7 @@ async function boot(u){
   import("./celebrate.js"+V).then(m=>m.check(me.uid)).catch(()=>{});
   import("./status.js"+V).then(m=>m.initStatus({uid:me.uid,name:me.name,photo:me.photo||""},()=>chatsAll)).catch(()=>{});
   //import("./together.js"+V).then(m=>m.initTogether(me.uid)).catch(()=>{});
- //import("./listplant.js"+V).then(m=>m.initListPlant(me.uid)).catch(()=>{});
+ import("./listplant.js"+V).then(m=>m.initListPlant(me.uid)).catch(()=>{});
   
   if(me.uid===OWNER_UID){show("adm",1);if($("m4"))show("m4",1);if($("m5"))show("m5",1)}
   unsubPR&&unsubPR();
@@ -273,7 +273,7 @@ async function openChat(o){
   all=new Map();hasMore=true;loadingOld=false;
   clr=clrOf(chatsAll.find(x=>x.id===id));
   unsubM&&unsubM();unsubU&&unsubU();unsubW&&unsubW();clearRep();
-  clearTimeout(wtWatchT);wtJoinedSid=null;wtLeftSid=null;wtDrop=null;wtBadgeClear();if($("wtbar"))show("wtbar",0);
+  wtJoinedId=null;wtLeftId=null;wtDrop=null;if($("wtbar"))show("wtbar",0);
   if(iOpen){iOpen=false;show("pinfo",0)}
   show("emo",0);show("menu",0);show("selbar",0);show("phead",1);
   $("on").textContent=o.name;setAv($("oa"),o.name,"");$("os").textContent="";
@@ -292,32 +292,16 @@ async function openChat(o){
     if(iOpen)fillInfo();
   });
   unsubW=onSnapshot(doc(db,"chats",id,"watch","current"),s=>{
-    clearTimeout(wtWatchT);
     const d=s.exists()?s.data(SNAP):null;
     if(!d||!d.active||d.hostUid===me.uid){
-      if(!d||!d.active){
-        if(yt&&yt.sync&&!yt.host)ytStop();
-        wtJoinedSid=null;wtBadgeClear();
-        if($("wtbar"))show("wtbar",0);
-      }
+      if(!d||!d.active){if(yt&&yt.sync&&!yt.host)ytStop();wtJoinedId=null;if($("wtbar"))show("wtbar",0)}
       return;
     }
-    const sid=d.sid||0,age=d.updatedAt?Date.now()-tms(d.updatedAt):0;
-    if(!d.updatedAt||age>WT_STALE_MS){                 // host ruk gaya tha bina properly khatam kiye — purana session, dikhao mat
-      if($("wtbar"))show("wtbar",0);wtBadgeClear();
-      deleteDoc(doc(db,"chats",id,"watch","current")).catch(()=>{});
-      return;
-    }
-    wtWatchT=setTimeout(()=>{                         // heartbeat band ho gaya (host gayab) — apne aap hata do
-      if($("wtbar"))show("wtbar",0);wtBadgeClear();
-      if(yt&&yt.sync&&!yt.host&&yt.sid===sid)ytStop();
-    },WT_STALE_MS+1500);
     d.chat=id;
-    wtBadge(d.msgId,true);
-    if(wtJoinedSid===sid&&yt&&yt.sync&&yt.id===d.msgId){wtDrop=d;wtApply(d);return}
-    if(wtLeftSid===sid)return;                        // isi session ko already chhod chuke
+    if(wtJoinedId===d.msgId&&yt&&yt.sync&&yt.id===d.msgId){wtDrop=d;wtApply(d);return}
+    if(wtLeftId===d.msgId)return;                    // isi session ko already chhod chuke
     wtDrop=d;
-    wtBar(d,()=>wtJoin(d));
+    wtBar((d.hostName||"They")+" started watching together",()=>wtJoin(d));
   });
 unsubM=onSnapshot(
     query(collection(db,"chats",id,"messages"),orderBy("t","desc"),limit(PAGE)),
@@ -346,7 +330,7 @@ if(rec)recStop(true);
   if(cur&&all.size){chatMem.set(cur.id,{all,hasMore});if(chatMem.size>20)chatMem.delete(chatMem.keys().next().value)}
   vcache.forEach(w=>{try{const v=w.tagName==='VIDEO'?w:w.querySelector&&w.querySelector('video');if(v&&!v.paused)v.pause()}catch(e){}});   // band chat ka video peeche na bajta rahe
   unsubM&&unsubM();unsubU&&unsubU();unsubW&&unsubW();cur=null;selId=null;
-  clearTimeout(wtWatchT);wtJoinedSid=null;wtLeftSid=null;wtDrop=null;wtBadgeClear();if($("wtbar"))show("wtbar",0);
+  wtJoinedId=null;wtLeftId=null;wtDrop=null;if($("wtbar"))show("wtbar",0);
   show("pane",0);show("empty",1);renderList();
   if(inChat){inChat=false;history.back()}
 }
@@ -1223,15 +1207,8 @@ function embedCard(m,x){
   c.innerHTML='<span class="lcp">'+ico(x.view?"eye":"play")+'</span><span class="lcn"></span>';
   const nm=c.querySelector(".lcn");
   nm.textContent=x.view?x.p+" · tap to view":x.p;
-  if(x.p==="YouTube"&&x.vid&&wtDrop&&wtDrop.msgId===m.id&&wtDrop.hostUid!==me.uid){
-    const lb=document.createElement("span");lb.className="wtlive";lb.innerHTML="<i></i>LIVE · tap to join";
-    lb.onclick=e=>{e.stopPropagation();if(wtDrop&&wtDrop.msgId===m.id)wtJoin(wtDrop)};   // sirf ye tap karne se hi join hota hai, poora card dabane se nahi
-    c.appendChild(lb);
-    wtBadgeMsg=m.id;
-  }
   const go=async e=>{
     if(e)e.stopPropagation();
-    if(yt&&yt.sync&&yt.id===m.id)return;            // isi video ka synced session chal raha hai, tap se mat chhedo
     if(x.lazy){                                    // Facebook share link: pehle asli link nikalo
       c.classList.add("ld");nm.textContent="Loading…";
       try{x.src=fbSrc(await resolveFb(x.from));x.lazy=false}
@@ -1288,7 +1265,8 @@ function ytReload(){                       // player dobara load: video phir se 
 function ytStop(){
   clearInterval(ytTimer);
   if(yt){
-    clearInterval(yt.hb);clearInterval(yt.tlT);
+    clearInterval(yt.hb);
+    clearInterval(yt.tlT);
     try{yt.player&&yt.player.destroy&&yt.player.destroy()}catch(e){}
     yt.wrap.remove();yt=null;
   }
@@ -1305,27 +1283,7 @@ function ytPos(){
 }
 
 /* ---------- Watch Together: YouTube dono taraf sync (sirf host control kare) ---------- */
-let unsubW=null,wtJoinedSid=null,wtLeftSid=null,wtDrop=null,wtWatchT=0,wtBadgeMsg=null;
-const WT_STALE_MS=11000;                 // ~3 chhoote hue heartbeats (har 4s mein ek aata hai)
-const fmtMmSs=s=>{s=Math.max(0,Math.round(s||0));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
-function wtBadgeClear(){                 // koi bhi "LIVE" badge hata do (msgId chahe jo ho)
-  const box=$("msgs");
-  if(box&&wtBadgeMsg){const b=box.querySelector('.lc[data-yt="'+wtBadgeMsg+'"] .wtlive');if(b)b.remove()}
-  wtBadgeMsg=null;
-}
-function wtBadge(msgId,on){              // chat bubble ke upar hi "LIVE · join" ka chhota badge
-  if(wtBadgeMsg&&wtBadgeMsg!==msgId)wtBadgeClear();
-  if(!on){if(wtBadgeMsg===msgId)wtBadgeClear();return}
-  const box=$("msgs");if(!box)return;
-  const c=box.querySelector('.lc[data-yt="'+msgId+'"]');
-  if(!c)return;                          // ye message abhi screen par nahi hai, koi baat nahi
-  wtBadgeMsg=msgId;
-  if(!c.querySelector(".wtlive")){
-    const b=document.createElement("span");b.className="wtlive";b.innerHTML='<i></i>LIVE · tap to join';
-    b.onclick=e=>{e.stopPropagation();if(wtDrop&&wtDrop.msgId===msgId)wtJoin(wtDrop)};
-    c.appendChild(b);
-  }
-}
+let unsubW=null,wtJoinedId=null,wtLeftId=null,wtDrop=null;
 let ytApiP=null;
 function loadYtApi(){
   if(window.YT&&window.YT.Player)return Promise.resolve();
@@ -1342,98 +1300,84 @@ function loadYtApi(){
 function wtBarEnsure(){
   if($("wtbar"))return;
   const st=document.createElement("style");
-  st.textContent=
-    "#wtbar{display:flex;align-items:center;gap:10px;margin:8px 10px 0;padding:10px 12px;border-radius:14px;"+
-    "background:linear-gradient(135deg,rgba(0,168,132,.16),var(--panel));border:1px solid rgba(0,168,132,.35);"+
-    "box-shadow:0 4px 18px rgba(0,0,0,.18);flex:none}"+
-    "#wtbar.hide{display:none}"+
-    "#wtbar .av{position:relative}"+
-    "#wtbar .av i{position:absolute;right:-2px;bottom:-2px;width:14px;height:14px;border-radius:50%;background:#ff3b30;"+
-    "border:2px solid var(--panel);animation:wtpulse 1.4s ease-in-out infinite}"+
-    "#wtbar .wtmid{flex:1;min-width:0}"+
-    "#wtbar .wtmid b{display:block;font-size:13.5px}"+
-    "#wtbar .wtmid span{display:block;color:var(--mute);font-size:12px;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}"+
-    "#wtbar .wtbtns{display:flex;align-items:center;gap:6px;flex:none}"+
-    "#wtbar .wtj{display:flex;align-items:center;gap:5px;border:0;border-radius:18px;padding:8px 15px;font-size:13px;"+
-    "font-weight:600;cursor:pointer;background:var(--g);color:#fff}"+
-    "#wtbar .wtj .i{width:13px;height:13px;fill:currentColor;stroke:none}"+
-    "#wtbar .wtx{border:0;border-radius:50%;width:30px;height:30px;display:grid;place-items:center;cursor:pointer;background:rgba(127,127,127,.22);color:inherit}"+
-    "@keyframes wtpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(.85)}}"+
-    ".wtlive{position:absolute;left:8px;top:8px;display:flex;align-items:center;gap:5px;background:rgba(0,0,0,.68);"+
-    "color:#fff;font-size:11.5px;font-weight:700;padding:6px 12px 6px 9px;border-radius:14px;z-index:1;cursor:pointer;"+
-    "box-shadow:0 2px 10px rgba(0,0,0,.35),0 0 0 1px rgba(255,255,255,.12) inset;transition:transform .12s ease}"+
-    ".wtlive:active{transform:scale(.94)}"+
-    ".wtlive i{width:7px;height:7px;border-radius:50%;background:#ff3b30;animation:wtpulse 1.4s ease-in-out infinite}"+
-    ".ytw{display:flex;flex-direction:column};.ytw:fullscreen,.ytw:-webkit-full-screen{width:100%!important;height:100%!important;top:0!important;left:0!important}"+                                    // sync overlay ab flex (control bar video ke neeche)
-    ".ytyv{flex:1;min-height:0;position:relative}"+
-    ".ytyv iframe{width:100%!important;height:100%!important}"+
-    ".ytctl{flex:none;display:flex;align-items:center;gap:8px;padding:6px 8px;background:#000}"+
-    ".yttl{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.25);overflow:hidden}"+
-    ".yttlf{height:100%;width:0%;background:var(--g);transition:width .4s linear}"+
-    ".ytctl button{border:0;border-radius:14px;padding:6px 11px;font-size:12px;font-weight:600;cursor:pointer;"+
-    "background:rgba(255,255,255,.14);color:#fff;display:flex;align-items:center;gap:5px;flex:none}"+
-    ".ytctl button.end{background:rgba(255,70,70,.85)}"+
-    ".ytctl .i{width:14px;height:14px}";
+  st.textContent="#wtbar{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--panel);border-top:1px solid var(--line);flex:none}#wtbar.hide{display:none}#wtbar span{flex:1;min-width:0;font-size:13px}#wtbar button{border:0;border-radius:16px;padding:7px 14px;font-size:13px;cursor:pointer}#wtbar .wtj{background:var(--g);color:#fff}#wtbar .wtx{background:rgba(127,127,127,.25);color:inherit}";
   document.head.appendChild(st);
   const d=document.createElement("div");d.id="wtbar";d.className="hide";
-  d.innerHTML='<div class="av" id="wtava"><i></i></div>'+
-    '<div class="wtmid"><b id="wtbt1"></b><span id="wtbt2"></span></div>'+
-    '<div class="wtbtns">'+
-      '<button type="button" class="wtj" id="wtbj">'+ico("play")+'<span>Join</span></button>'+
-      '<button type="button" class="wtx" id="wtbx" aria-label="Dismiss">'+ico("x")+'</button>'+
-    '</div>';
+  d.innerHTML='<span id="wtbt"></span><button type="button" class="wtj" id="wtbj">Join</button><button type="button" class="wtx" id="wtbx" aria-label="Dismiss">'+ico("x")+'</button>';
   $("rbar").parentNode.insertBefore(d,$("rbar"));
-  $("wtbx").onclick=()=>{wtLeftSid=wtDrop&&wtDrop.sid;show("wtbar",0)};
+  $("wtbx").onclick=()=>{wtLeftId=wtDrop&&wtDrop.msgId;show("wtbar",0)};
 }
-function wtBar(d,onJoin){
+function wtBar(text,onJoin){
   wtBarEnsure();
-  setAv($("wtava"),d.hostName||"?",null);
-  $("wtbt1").textContent=(d.hostName||"They")+" is watching together";
-  let t=d.time||0;if(d.state==="playing")t+=Math.max(0,(Date.now()-tms(d.updatedAt))/1000);
-  $("wtbt2").textContent="▶ already "+fmtMmSs(t)+" in — join to watch in sync";
+  $("wtbt").textContent=text;
   $("wtbj").onclick=()=>{show("wtbar",0);onJoin()};
   show("wtbar",1);
 }
 
-function ytPlaySync(m,x,isHost,sid){
+const fmtMmSs=s=>{s=Math.max(0,Math.floor(s||0));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
+
+function ytPlaySync(m,x,isHost){
   ytStop();
   loadYtApi().then(()=>{
     if(!cur||cur.id!==(m.chat||cur.id))return;              // beech mein chat badal gayi
-    const wrap=document.createElement("div");wrap.className="ytw";
-    const vwrap=document.createElement("div");vwrap.className="ytyv";
-    const holder=document.createElement("div");vwrap.appendChild(holder);
-    wrap.appendChild(vwrap);
-
+    const wrap=document.createElement("div");wrap.className="ytw ytwsync";
+    const holder=document.createElement("div");wrap.appendChild(holder);
     const ctl=document.createElement("div");ctl.className="ytctl";
-    const tl=document.createElement("div");tl.className="yttl";
-    const tlf=document.createElement("div");tlf.className="yttlf";tl.appendChild(tlf);
-    const fsb=document.createElement("button");fsb.type="button";fsb.setAttribute("aria-label","Fullscreen");
-    fsb.innerHTML=ico("expand");
-    fsb.onclick=e=>{e.stopPropagation();const r=wrap.requestFullscreen||wrap.webkitRequestFullscreen;if(r)r.call(wrap)};
-    const eb=document.createElement("button");eb.type="button";eb.className="end";
-    eb.innerHTML=isHost?ico("x")+"<span>End for both</span>":ico("x")+"<span>Leave</span>";
-    eb.onclick=e=>{e.stopPropagation();isHost?wtEnd():wtLeave()};
-    ctl.append(tl,fsb,eb);wrap.appendChild(ctl);
-
+    ctl.innerHTML=
+      '<button type="button" class="ytpp"'+(isHost?"":" disabled")+' aria-label="Play/Pause">'+ico("pause")+'</button>'+
+      '<span class="yttm ytcur">0:00</span>'+
+      '<div class="yttl"><div class="yttlf"></div></div>'+
+      '<span class="yttm ytdur">0:00</span>'+
+      '<button type="button" class="ytfs" aria-label="Fullscreen">'+ico("expand")+'</button>'+
+      '<button type="button" class="ytendbtn">'+(isHost?"End for both":"Leave")+'</button>';
+    wrap.appendChild(ctl);
     ytLayer.appendChild(wrap);
-    yt={id:m.id,wrap,sync:true,host:isHost,sid,lastT:0};
+    yt={id:m.id,wrap,sync:true,host:isHost,lastT:0,dur:0};
     ytPos();ytTimer=setInterval(ytPos,300);
-    yt.tlT=setInterval(()=>{                                // dono taraf dikhne wali timeline, sirf local player se
-      if(!yt||!yt.player)return;
-      let t=0,dur=0;try{t=yt.player.getCurrentTime()||0;dur=yt.player.getDuration()||0}catch(e){}
-      if(dur>0)tlf.style.width=Math.min(100,t/dur*100)+"%";
-    },500);
     const chatId=cur.id;
+    const pp=ctl.querySelector(".ytpp"),tl=ctl.querySelector(".yttl"),tlf=ctl.querySelector(".yttlf"),
+          curEl=ctl.querySelector(".ytcur"),durEl=ctl.querySelector(".ytdur");
+    ctl.querySelector(".ytfs").onclick=e=>{
+      e.stopPropagation();
+      if(document.fullscreenElement||document.webkitFullscreenElement){
+        (document.exitFullscreen||document.webkitExitFullscreen||function(){}).call(document);
+      }else{
+        const rf=wrap.requestFullscreen||wrap.webkitRequestFullscreen;
+        rf&&rf.call(wrap);
+      }
+    };
+    ctl.querySelector(".ytendbtn").onclick=e=>{e.stopPropagation();isHost?wtEnd():wtLeave()};
+    if(isHost){
+      pp.onclick=e=>{
+        e.stopPropagation();
+        if(!yt||!yt.player)return;
+        try{yt.player.getPlayerState()===1?yt.player.pauseVideo():yt.player.playVideo()}catch(err){}
+      };
+      tl.onclick=e=>{
+        e.stopPropagation();
+        if(!yt||!yt.player||!yt.dur)return;
+        const r=tl.getBoundingClientRect(),ratio=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width));
+        try{yt.player.seekTo(yt.dur*ratio,true)}catch(err){}
+      };
+    }else{
+      tl.style.cursor="default";
+    }
+    // Hamesha apne controls (controls:0) — YouTube ka khud ka UI (logo/channel/suggestions) kabhi
+    // dikhe hi nahi, isliye kahin bhi tap karne se YouTube pe redirect nahi ho sakta.
     yt.player=new YT.Player(holder,{
       host:"https://www.youtube-nocookie.com",
       videoId:x.vid,
-      playerVars:{autoplay:1,playsinline:1,rel:0,modestbranding:1,controls:isHost?1:0},
+      playerVars:{autoplay:1,playsinline:1,rel:0,modestbranding:1,controls:0,disablekb:1,fs:0,iv_load_policy:3},
       events:{
         onReady:()=>{
-          try{const f=yt.player.getIframe();if(f)f.style.cssText="width:100%;height:100%;border:0;display:block"}catch(e){}
+          try{
+            const f=yt.player.getIframe();
+            if(f)f.style.cssText="width:100%;height:100%;border:0;display:block;pointer-events:none";   // iframe khud kabhi click na pakde
+          }catch(e){}
+          try{yt.dur=yt.player.getDuration()||0;durEl.textContent=fmtMmSs(yt.dur)}catch(e){}
           if(isHost){
             setDoc(doc(db,"chats",chatId,"watch","current"),
-              {msgId:m.id,videoId:x.vid,hostUid:me.uid,hostName:me.name,state:"playing",time:0,sid,updatedAt:serverTimestamp(),active:true})
+              {msgId:m.id,videoId:x.vid,hostUid:me.uid,hostName:me.name,state:"playing",time:0,updatedAt:serverTimestamp(),active:true})
               .catch(()=>toast("Could not start Watch Together"));
             yt.hb=setInterval(()=>{
               if(!yt||!yt.player||!yt.host)return;
@@ -1443,8 +1387,21 @@ function ytPlaySync(m,x,isHost,sid){
           }else if(wtDrop&&wtDrop.msgId===m.id){
             wtApply(wtDrop);           // join karte hi turant host ke paas pahuncho
           }
+          clearInterval(yt.tlT);
+          yt.tlT=setInterval(()=>{                 // dono taraf ek jaisi progress timeline
+            if(!yt||!yt.player)return;
+            let t=0,d=yt.dur||0;
+            try{
+              t=yt.player.getCurrentTime()||0;
+              if(!d){d=yt.player.getDuration()||0;yt.dur=d;durEl.textContent=fmtMmSs(d)}
+            }catch(e){}
+            curEl.textContent=fmtMmSs(t);
+            if(d)tlf.style.width=Math.min(100,(t/d)*100)+"%";
+            try{pp.innerHTML=yt.player.getPlayerState()===1?ico("pause"):ico("play")}catch(e){}
+          },500);
         },
         onStateChange:e=>{
+          if(yt){try{pp.innerHTML=e.data===1?ico("pause"):ico("play")}catch(err){}}
           if(!isHost||!yt||!yt.player)return;
           if(e.data===1||e.data===2){     // playing / paused
             let t=0;try{t=yt.player.getCurrentTime()||0}catch(err){}
@@ -1471,23 +1428,20 @@ function wtApply(d){
 function wtStart(m,x){
   if(!cur)return;
   m.chat=cur.id;
-  ytPlaySync(m,x,true,Date.now());
+  ytPlaySync(m,x,true);
 }
 function wtJoin(d){
   if(!cur||cur.id!==d.chat)return;
-  wtJoinedSid=d.sid;wtLeftSid=null;show("wtbar",0);wtBadge(d.msgId,false);
+  wtJoinedId=d.msgId;
   const m={id:d.msgId,chat:cur.id},x={vid:d.videoId};
-  ytPlaySync(m,x,false,d.sid);
+  ytPlaySync(m,x,false);
 }
 function wtEnd(){           // host: sabke liye khatam
   if(!cur)return;
   deleteDoc(doc(db,"chats",cur.id,"watch","current")).catch(()=>{});
   ytStop();
 }
-function wtLeave(){           // follower: sirf apni taraf se band, isi session ka dobara-prompt na aaye
-  if(yt&&yt.sid)wtLeftSid=yt.sid;
-  ytStop();
-}
+function wtLeave(){ytStop()}  // follower: sirf apni taraf se band
 /* ---------- Paste / keyboard images, GIFs, stickers ---------- */
 function stagePaste(f,fromKb){
   if(!cur)return toast("Open a chat first");
