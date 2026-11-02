@@ -295,11 +295,16 @@ async function openChat(o){
     const d=s.exists()?s.data(SNAP):null;
     if(!d||!d.active||d.hostUid===me.uid){
       if(!d||!d.active){if(yt&&yt.sync&&!yt.host)ytStop();wtJoinedId=null;if($("wtbar"))show("wtbar",0)}
+      else if(yt&&yt.sync&&yt.host&&yt.sid===d.sid&&yt.stEl){     // host: guest ne join kiya ya nahi, turant pata chale
+        yt.stEl.textContent=d.guestJoined?"✓ Partner joined":"Waiting for partner…";
+        if(d.guestJoined&&!yt.joined){yt.joined=true;toast("Partner joined Watch Together")}
+        else if(!d.guestJoined)yt.joined=false;
+      }
       return;
     }
     d.chat=id;
-    if(wtJoinedId===d.msgId&&yt&&yt.sync&&yt.id===d.msgId){wtDrop=d;wtApply(d);return}
-    if(wtLeftId===d.msgId)return;                    // isi session ko already chhod chuke
+    if(wtJoinedId===d.sid&&yt&&yt.sync&&yt.id===d.msgId){wtDrop=d;wtApply(d);return}
+    if(wtLeftId===d.sid)return;                    // isi session (sid) ko already chhod/dismiss kar chuke — naya start (naya sid) phir bhi dikhega
     wtDrop=d;
     wtBar((d.hostName||"They")+" started watching together",()=>wtJoin(d));
   });
@@ -1305,7 +1310,7 @@ function wtBarEnsure(){
   const d=document.createElement("div");d.id="wtbar";d.className="hide";
   d.innerHTML='<span id="wtbt"></span><button type="button" class="wtj" id="wtbj">Join</button><button type="button" class="wtx" id="wtbx" aria-label="Dismiss">'+ico("x")+'</button>';
   $("rbar").parentNode.insertBefore(d,$("rbar"));
-  $("wtbx").onclick=()=>{wtLeftId=wtDrop&&wtDrop.msgId;show("wtbar",0)};
+  $("wtbx").onclick=()=>{wtLeftId=wtDrop&&wtDrop.sid;show("wtbar",0)};  // sirf isi session (sid) ko dismiss karo, naya start future mein phir dikhega
 }
 function wtBar(text,onJoin){
   wtBarEnsure();
@@ -1316,7 +1321,7 @@ function wtBar(text,onJoin){
 
 const fmtMmSs=s=>{s=Math.max(0,Math.floor(s||0));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
 
-function ytPlaySync(m,x,isHost){
+function ytPlaySync(m,x,isHost,sid){
   ytStop();
   loadYtApi().then(()=>{
     if(!cur||cur.id!==(m.chat||cur.id))return;              // beech mein chat badal gayi
@@ -1328,15 +1333,18 @@ function ytPlaySync(m,x,isHost){
       '<span class="yttm ytcur">0:00</span>'+
       '<div class="yttl"><div class="yttlf"></div></div>'+
       '<span class="yttm ytdur">0:00</span>'+
+      '<span class="ytst"></span>'+
       '<button type="button" class="ytfs" aria-label="Fullscreen">'+ico("expand")+'</button>'+
       '<button type="button" class="ytendbtn">'+(isHost?"End for both":"Leave")+'</button>';
     wrap.appendChild(ctl);
     ytLayer.appendChild(wrap);
-    yt={id:m.id,wrap,sync:true,host:isHost,lastT:0,dur:0};
+    yt={id:m.id,wrap,sync:true,host:isHost,lastT:0,dur:0,sid,joined:false};
     ytPos();ytTimer=setInterval(ytPos,300);
     const chatId=cur.id;
     const pp=ctl.querySelector(".ytpp"),tl=ctl.querySelector(".yttl"),tlf=ctl.querySelector(".yttlf"),
-          curEl=ctl.querySelector(".ytcur"),durEl=ctl.querySelector(".ytdur");
+          curEl=ctl.querySelector(".ytcur"),durEl=ctl.querySelector(".ytdur"),stEl=ctl.querySelector(".ytst");
+    yt.stEl=stEl;
+    if(isHost)stEl.textContent="Waiting for partner…";
     ctl.querySelector(".ytfs").onclick=e=>{
       e.stopPropagation();
       if(document.fullscreenElement||document.webkitFullscreenElement){
@@ -1377,15 +1385,16 @@ function ytPlaySync(m,x,isHost){
           try{yt.dur=yt.player.getDuration()||0;durEl.textContent=fmtMmSs(yt.dur)}catch(e){}
           if(isHost){
             setDoc(doc(db,"chats",chatId,"watch","current"),
-              {msgId:m.id,videoId:x.vid,hostUid:me.uid,hostName:me.name,state:"playing",time:0,updatedAt:serverTimestamp(),active:true})
+              {msgId:m.id,videoId:x.vid,hostUid:me.uid,hostName:me.name,state:"playing",time:0,sid,guestJoined:false,updatedAt:serverTimestamp(),active:true})
               .catch(()=>toast("Could not start Watch Together"));
             yt.hb=setInterval(()=>{
               if(!yt||!yt.player||!yt.host)return;
               let t=0;try{t=yt.player.getCurrentTime()||0}catch(e){}
               updateDoc(doc(db,"chats",chatId,"watch","current"),{time:t,updatedAt:serverTimestamp()}).catch(()=>{});
             },4000);
-          }else if(wtDrop&&wtDrop.msgId===m.id){
-            wtApply(wtDrop);           // join karte hi turant host ke paas pahuncho
+          }else{
+            if(wtDrop&&wtDrop.msgId===m.id)wtApply(wtDrop);           // join karte hi turant host ke paas pahuncho
+            updateDoc(doc(db,"chats",chatId,"watch","current"),{guestJoined:true}).catch(()=>{});   // host ko pata chale ki join ho gaya
           }
           clearInterval(yt.tlT);
           yt.tlT=setInterval(()=>{                 // dono taraf ek jaisi progress timeline
@@ -1428,20 +1437,25 @@ function wtApply(d){
 function wtStart(m,x){
   if(!cur)return;
   m.chat=cur.id;
-  ytPlaySync(m,x,true);
+  ytPlaySync(m,x,true,Date.now());     // har "Watch together" tap ek naya sid = ek naya session
 }
 function wtJoin(d){
   if(!cur||cur.id!==d.chat)return;
-  wtJoinedId=d.msgId;
+  wtJoinedId=d.sid;
   const m={id:d.msgId,chat:cur.id},x={vid:d.videoId};
-  ytPlaySync(m,x,false);
+  ytPlaySync(m,x,false,d.sid);
 }
 function wtEnd(){           // host: sabke liye khatam
   if(!cur)return;
   deleteDoc(doc(db,"chats",cur.id,"watch","current")).catch(()=>{});
   ytStop();
 }
-function wtLeave(){ytStop()}  // follower: sirf apni taraf se band
+function wtLeave(){           // follower: sirf apni taraf se band, host ko bata do ki chhod diya
+  if(yt&&yt.sync&&!yt.host&&cur){
+    updateDoc(doc(db,"chats",cur.id,"watch","current"),{guestJoined:false}).catch(()=>{});
+  }
+  ytStop();
+}
 /* ---------- Paste / keyboard images, GIFs, stickers ---------- */
 function stagePaste(f,fromKb){
   if(!cur)return toast("Open a chat first");
